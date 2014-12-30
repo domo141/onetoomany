@@ -1,0 +1,569 @@
+#!/usr/bin/perl
+# -*- mode: cperl; cperl-indent-level: 4 -*-
+#
+# Author: Tomi Ollila -- too ät iki piste fi
+#
+#	Copyright (c) 2014 Tomi Ollila
+#	    All rights reserved
+#
+# Created: Sat 07 Jun 2014 19:55:25 EEST too
+# Last modified: Tue 30 Dec 2014 20:27:35 +0200 too
+
+### all ###
+use 5.8.1;
+use strict;
+use warnings;
+use IO::Socket::INET;
+
+my $rorl;
+sub pdie (@) {
+    die "$rorl: $!\n" unless @_;
+    die "$rorl: @_ $!\n" if $_[$#_] =~ /:$/;
+    die "$rorl: @_\n";
+}
+### end ###
+$rorl = 'local';
+
+# pöh, Crypt::random not there by default -- /dev/random now, portability later
+#use Crypt::random qw/makerandom/;
+
+# The first arg '+' option may one day gain format +[[host:port]:port],
+# so that going through firewalls that provide port forwarding is possible.
+
+my $pa; $pa = shift if @ARGV and $ARGV[0] =~ /^[-+]\d*$/;
+
+sub xhelp($)
+{
+    unless ($_[0]) {
+	# the only (simple, yet fragile?) way to avoid those silly stars (*))
+	no warnings; $Pod::Usage::Formatter = 'Pod::Text::Overstrike'; }
+    require Pod::Usage; Pod::Usage->import(qw/pod2usage/);
+    pod2usage(-verbose => $_[0], -exitval => 'NOEXIT', -noperldoc => 0);
+    $_ = $0, s|.*/||, warn "enter $_ --help to get more help\n\n" unless $_[0];
+    exit !$_[0];
+}
+
+use Getopt::Long qw(:config no_ignore_case require_order bundling);
+
+my $foreground = 0;
+my $ssh_port;
+my $ssh_command = 'ssh';
+my $sftp_server = 'sftp-server';
+my $sshfs_command = 'sshfs';
+
+GetOptions( "help" => sub { xhelp 2 },
+	    "f" => \$foreground,
+	    "p=i" => \$ssh_port,
+	    "ssh-command=s" => \$ssh_command,
+	    "sftp-server=s" => \$sftp_server,
+	    "sshfs-command=s" => \$sshfs_command )
+  or exit 2;
+
+# support {sh} -c {script-content} format
+my @ssh_command = ($ssh_command =~ s/^(\S+)\s+-c\s+//)?
+  ( $1, '-c', $ssh_command ) : split ' ', $ssh_command;
+
+xhelp 0 if @ARGV < 2;
+
+die "ssh-command unset (given just as (white) space?)\n" unless @ssh_command;
+$ssh_command = $ssh_command[0];
+if ($ssh_command =~ /\//) {
+    die "'$ssh_command': not an executable\n" unless -x $ssh_command;
+    undef $ssh_command;
+} else {
+    foreach (split /:/, $ENV{PATH}) {
+	undef $ssh_command, last if -x "$_/$ssh_command";
+    }
+    die "$ssh_command: no such executable found\n" if defined $ssh_command;
+}
+$pa = '-' unless defined $pa;
+
+my $path = shift;
+my $mnt = shift;
+
+my $codere;
+
+my $reversemount;
+if (index($path, ':') >= 0) {
+    die "Both '$path' and '$mnt' have 'remote' path format.\n"
+      if index($mnt, ':') >= 0;
+    $reversemount = 0;
+    $codere = 'all';
+}
+elsif (index($mnt, ':') < 0) {
+    die "Neither '$path' nor '$mnt' have 'remote' path format.\n"
+}
+else {
+    $reversemount = 1;
+    $codere = 'all|rmount';
+}
+
+my ($localbind, $remotebind);
+if (ord $pa == 45) {
+    $codere = $codere . "|raccept";
+    no warnings;
+    $remotebind = 0 - $pa;
+} else {
+    $codere = $codere . "|rconnect";
+    no warnings;
+    $localbind =  0 + $pa;
+}
+
+sub readrandom($$)
+{
+    my $off = 0;
+    my $left = $_[1];
+    while (1) {
+	my $l = sysread I, $_[0], $left, $off;
+	return if $l == $left;
+	pdie if $l <= 0;
+	$left -= $l;
+	$off = $l;
+    }
+}
+
+open I, '<', '/dev/random' or pdie 'open:';
+my $sec1; readrandom $sec1, 4; $sec1 = sprintf '%08x', unpack 'L', $sec1;
+my $sec2; readrandom $sec2, 4; $sec2 = sprintf '%08x', unpack 'L', $sec2;
+my $pstp;
+if ($pa + 0 == 0) {
+    readrandom $pa, 3;
+    ($pa, $pstp) = unpack 'SC', $pa;
+    if (defined $remotebind) {
+	$remotebind = 16384 + int($pa / 4);
+    } else {
+	$localbind = 16384 + int($pa / 4);
+    }
+    $pstp |= ($pa & 3) << 8; $pstp += 11;
+}
+else { $pstp = 0; }
+close I;
+
+my (@sshfs_xopts, @sftp_xopts);
+while (@ARGV) {
+    my $opt = shift;
+    if ($opt eq '--') {
+	@sftp_xopts = @ARGV;
+	last;
+    }
+    push @sshfs_xopts, $opt;
+}
+
+### rmount ###
+sub emptydir ($)
+{
+    pdie "'$_[0]':" unless opendir D, $_[0];
+    grep { $_ eq '.' or $_ eq '..' or pdie "'$_[0]': directory not empty"; }
+      readdir D;
+    closedir D;
+}
+### end ###
+
+my ($rhost, $rdir);
+if ($reversemount) {
+    pdie "'$path': no such directory" unless -d $path;
+    ($rhost, $rdir) = split /:/, $mnt, 2;
+} else {
+    emptydir $mnt;
+    ($rhost, $rdir) = split /:/, $path, 2;
+}
+
+socketpair P, C, PF_UNIX, SOCK_STREAM, 0 or pdie 'socketpair:';
+
+### raccept ###
+sub doaccept($*)
+{
+    my $ss = IO::Socket::INET->new(Listen => 1,
+				   LocalAddr => '0.0.0.0',
+				   LocalPort => $_[0],
+				   ReuseAddr => 1,
+				   Proto     => 'tcp') || pdie 'bind:';
+    warn "$rorl: listening port $_[0]\n";
+    #open STDOUT, '>&STDERR'; exec qw/netstat -natp/;
+    syswrite $_[1], 'sain';
+    alarm 10;
+    my $s = $ss->accept() || pdie 'accept:';
+    undef $ss;
+    return $s;
+}
+### end ###
+### rconnect ###
+sub doconnect($$*)
+{
+    my $sain;
+    read $_[2], $sain, 4;
+    pdie "connection closed" if defined $sain and $sain eq '';
+    pdie "protocol mismatch: '$sain'" unless $sain eq 'sain';
+
+    my $rh;
+    if ($_[0] eq '1') { # yes, it's a hack...
+	$ENV{SSH_CLIENT} =~ /(\S+)/ or die; $rh = $1;
+    } else {
+	$rh = $_[0];
+    }
+    warn "$rorl: connecting $rh port $_[1]\n";
+    alarm 10;
+    my $s = IO::Socket::INET->new(PeerAddr => $rh,
+				  PeerPort => $_[1],
+				  Proto => 'tcp') || pdie 'connect:';
+}
+### end ###
+### all ###
+sub handshake($$$)
+{
+    syswrite $_[0], $_[2];
+    my $rsec; sysread $_[0], $rsec, 8;
+    pdie "secret mismatch" unless $rsec eq $_[1];
+    syswrite $_[0], "OK\n";
+    sysread $_[0], $rsec, 3;
+    pdie "not OK ($rsec)" unless $rsec eq "OK\n";
+    alarm 0;
+}
+sub fork_and_parent_wait_for_exec()
+{
+	# close-on-exec is the trick
+	socketpair PP, CC, PF_UNIX, SOCK_STREAM, 0 or pdie 'socketpair:';
+	if (fork) {
+		# parent
+		close CC;
+		my $data;
+		sysread PP, $data, 10; # XXX error checking
+		select undef, undef, undef, 0.25; # some time for remote stderr
+		exit 0;
+	}
+	# child
+	close PP;
+}
+### end ###
+
+if (fork == 0) {
+    # child
+    close P;
+    open STDIN, '<&', \*C or pdie;
+    open STDOUT, '>&', \*C or pdie;
+    $ENV{LC_ALL} = $ENV{LANG} = 'C';
+    push(@ssh_command, ('-p', "$ssh_port")) if defined $ssh_port;
+    warn "running @ssh_command  '$rhost'  'perl'\n";
+    exec @ssh_command, $rhost, 'perl';
+    exit 1;
+}
+# parent
+close C;
+select((select(P), $| = 1)[$[]);
+
+$codere = qr/^### (?:$codere) ###/;
+
+open I, '<', "$0" || pdie;
+while (<I>) {
+    if (/$codere/) {
+	print P '# line ', $. + 1, "\n";
+	while (<I>) {
+	    last if /^### end ###\s/;
+	    print P $_;
+	}
+    }
+}
+close I;
+
+print P '# line ', __LINE__ + 2, "\n";
+print P <<'EOF';
+$rorl = 'remote';
+#chomp ($rorl = qx/hostname/);
+
+syswrite STDOUT, "hs--comm--sync\n";
+
+my ($host, $port, $pstp, $sec1, $sec2);
+while (<STDIN>) {
+	my ($hdr, $rest);
+	($hdr, $host, $port, $pstp, $sec1, $sec2, $rest) = split " ";
+	last if $hdr eq 'hs--comm--data';
+}
+my $s = $host? doconnect($host, $port, *STDIN): doaccept($port, *STDOUT);
+handshake $s, $sec1, $sec2;
+my $cmd = <STDIN>; chomp $cmd;
+my $dir = <STDIN>; chomp $dir;
+$dir = '.' if $dir eq '';
+my @args;
+while (<STDIN>) {
+    chomp;
+    last if $_ eq "--";
+    push @args, $_;
+}
+EOF
+
+if ($reversemount) {
+    print P '# line ', __LINE__ + 1, "\n";
+    print P "emptydir \$dir;\n";
+}
+print P '# line ', __LINE__ + 1, "\n";
+print P "chdir \$dir or pdie \"chdir '\$dir'\";\n";
+
+unless ($foreground) {
+    print P '# line ', __LINE__ + 1, "\n";
+    print P "fork_and_parent_wait_for_exec;\n";
+}
+
+if ($reversemount) {
+    print P '# line ', __LINE__ + 2, "\n";
+    print P <<'EOF';
+no warnings;
+my $remote = ($ENV{SSH_CLIENT} =~ /(\S+)/)? $1: "sshlessfs";
+use warnings;
+open STDIN, '<&', \$s or pdie;
+open STDOUT, '>&', \$s or pdie;
+warn "$rorl: executing $cmd $remote: . -o slave @args\n";
+exec $cmd, "$remote:", qw/. -o slave/, @args;
+#exec qw'/usr/bin/strace', $cmd, "$remote:", qw/. -o slave/, @args;
+exit 1;
+__END__
+EOF
+} else {
+    print P '# line ', __LINE__ + 2, "\n";
+    print P <<'EOF';
+open STDIN, '<&', \$s or pdie;
+open STDOUT, '>&', \$s or pdie;
+$ENV{PATH} = '/usr/libexec/openssh:/usr/lib/openssh:/usr/lib/ssh';
+warn "$rorl: executing $cmd @args\n";
+exec $cmd, @args;
+#exec '/usr/bin/strace', $cmd, @args;
+exit 1;
+__END__
+EOF
+}
+
+my $s;
+if (defined $localbind) {
+    print P "hs--comm--data 1 $localbind $pstp $sec1 $sec2 rest\n";
+    while (<P>) { last if $_ eq "hs--comm--sync\n"; }
+    $s = doaccept $localbind, *P;
+} else {
+    print P "hs--comm--data 0 $remotebind $pstp $sec1 $sec2 rest\n";
+    while (<P>) { last if $_ eq "hs--comm--sync\n"; }
+    $rhost =~ s/.*@//;
+
+    $s = doconnect $rhost, $remotebind, *P;
+}
+handshake $s, $sec2, $sec1;
+
+print P ($reversemount? $sshfs_command: $sftp_server), "\n";
+print P "$rdir\n";
+print P join("\n", ($reversemount? @sshfs_xopts: @sftp_xopts), "--\n");
+
+fork_and_parent_wait_for_exec unless $foreground;
+open STDIN, '<&', \$s or pdie;
+open STDOUT, '>&', \$s or pdie;
+
+if ($reversemount) {
+    chdir $path || pdie "chdir '$path':";
+    $ENV{PATH} = '/usr/libexec/openssh:/usr/lib/openssh:/usr/lib/ssh';
+    warn "$rorl: executing $sftp_server @sftp_xopts\n";
+    exec $sftp_server, @sftp_xopts;
+}
+else {
+    warn "$rorl: executing $sshfs_command -o slave @sshfs_xopts\n";
+    exec $sshfs_command, $path, $mnt, qw/-o slave/, @sshfs_xopts;
+}
+exit 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+B<sshlessfs> -- sshfs (fuse) mount without live ssh connection
+
+=head1 SYNOPSIS
+
+B<sshlessfs> I<[(-|+)[port]]> I<[options]> I<path> I<mountpoint> I<[tool-options]>
+
+=head1 DESCRIPTION
+
+In the shortest form
+
+=over 4
+
+B<sshlessfs> I<[user@]host:[dir]> I<mountpoint>
+
+=back
+
+This works very much like sshfs -- ssh connection is used to initiate the
+mount, but when initialization is done the data traffic between the hosts
+is carried over plain TCP connection.
+
+The TCP port is chosen randomly between 16384 and 32768. Due to firewall
+configuration this may not be "optimal", therefore executing the command as
+
+=over 4
+
+B<sshlessfs> B<->I<port> I<[user@]host:[dir]> I<mountpoint>
+
+=back
+
+the I<port> value specifies the exact TCP port that is used for creating the
+plain TCP connection.
+
+Note that the port is "unbound" immediately after the connection is
+established should it be needed for some other purpose soon after.
+
+Sometimes the connection peer cannot be configured to allow accepting
+connections to any pre-defined ports. However, if the "local" host can
+do this, then the form
+
+=over 4
+
+B<sshlessfs> B<+>I<[port]> I<[user@]host:[dir]> I<mountpoint>
+
+=back
+
+will make peer connect to locally bound I<port> -- plain B<+> makes use of
+randomly chosen TCP port the same way as the "shortest" form.
+
+=head2 "Reverse" Mount
+
+With B<sshlessfs> it is also possible to mount the local filesystem to
+remote mountpoint, by just giving the I<mountpoint> argument in
+I<[user@]host:[dir]> form
+
+=over 4
+
+B<sshlessfs> I<path> I<[user@]host:[dir]>
+
+=back
+
+In this case the local I<path> is attached to I<dir> in remote I<host>.
+
+=head1 SSHLESSFS OPTIONS
+
+After the first I<(-|+)[port]> and before the I<paths> arguments there are
+the following options available:
+
+=over 4
+
+=item B<-f>
+
+Foreground operation. I.e. do not detach from terminal after mount has been
+established. Also the initial ssh connection stays live -- stderr from remote
+component can be seen on local terminal.
+
+=item B<-p port>
+
+The port to use in B<ssh> connection. Passed as is to ssh(1).
+Do not confuse with the plain TCP port used above.
+
+=item B<--ssh-command>
+
+Use this command instead of 'B<ssh>'. This option has some special
+characteristics:
+
+The value is split to command and arguments using any whitespace as a
+separator. This may have some convenient use cases (like providing options
+to ssh(1) that are not supported by this frontend). This means that there
+cannot be any spaces in the command name -- but see the following if
+support for whitespace in command name is really needed.
+
+However, if the second split string is '-c' then it is expected that the
+user wants to use shell (defined by the shell command by first split string)
+and rest arguments are concatenated as one string. 2 examples to enlighten
+this feature:
+
+=over 4
+
+=item B<--ssh-command 'sh -c set -x; exec ssh "$0" "$@"'>
+
+Echo the ssh command to be executed (ok, it is already printed but it
+did not used to be... but this visualizes how shell get it's command line
+parameters -- and how spaces can be embedded if needed).
+
+=item B<--ssh-command='sh -c SSH_CLIENT="127.1 1234 22" exec perl'>
+
+Mount local filesystem instead of going remote. With this format all TCP
+port options and mounting options can be locally smoketested. When this is
+used the I<host> option in command line needs to be B<127>I<[.0.0]>B<.1>.
+
+=back
+
+=item B<--sftp-server>
+
+Run this command instead of B<sftp-server>, "normally" at remote host but
+when doing "reverse" mount, locally. The command name is taken verbatim
+from command line. See TOOL OPTIONS for sftp-server arguments, if needed.
+
+=item B<--sshfs-command>
+
+Run this command instead of B<sshfs>, "normally" locally but when doing
+"reverse" mount, at remote host. The command name is taken verbatim
+from command line. See TOOL OPTIONS for sshfs arguments, if needed.
+
+=back
+
+=head1 TOOL OPTIONS
+
+After the I<paths> arguments the rest arguments go to the tools making the
+sshlessfs mounting work.
+
+The tool providing the mount is B<sshfs>, with I<-o slave> functionality.
+
+The tool serving filesystem data is B<sftp-server>, by default requiring
+no extra (command line) options.
+
+The I<tool-options> provides (optional) options for both, in format:
+
+=over 2
+
+[I<sshfs-options>] [B<--> I<sftp-options>]
+
+=back
+
+For example, if read-only mount is desired (and B<sftp-server> is recent
+enough), adding B<-- -R> at the end of command line will deliver the B<-R>
+option to B<sftp-server>.
+
+Another example: to debug B<sshfs> operations, adding B<-o sshfs_debug> at
+the end of command line will deliver the option to B<sshfs>. In this case
+it is good idea to include B<-f> as B<sshlessfs> options.
+
+Combining both of the above examples would look like:
+
+=over 2
+
+B<sshlessfs -f> I<[user@]host:[dir]> I<mountpoint> B<-o sshfs_debug -- -R>
+
+=back
+
+=head1 BUGS
+
+IPv6 is poorly supported (if at all).
+
+=head1 LICENSE
+
+This is free software; you can redistribute it and/or modify it under the
+same terms as the Perl 5 programming language system itself:
+
+Terms of Perl itself
+
+=over 4
+
+=item a)
+
+the GNU General Public License as published by the Free
+Software Foundation; either version 1, or (at your option) any
+later version, or
+
+=item b)
+
+the "Artistic License"
+
+=back
+
+=head1 AUTHOR
+
+Tomi Ollila -- too ät iki piste fi
+
+=head1 VERSION
+
+1.0 (2014-12-30)
+
+=head1 SEE ALSO
+
+L<sshfs>, L<sftp-server>, L<ssh>
