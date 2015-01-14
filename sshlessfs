@@ -7,7 +7,7 @@
 #	    All rights reserved
 #
 # Created: Sat 07 Jun 2014 19:55:25 EEST too
-# Last modified: Tue 30 Dec 2014 20:27:35 +0200 too
+# Last modified: Wed 14 Jan 2015 05:45:00 +0200 too
 
 ### all ###
 use 5.8.1;
@@ -24,7 +24,8 @@ sub pdie (@) {
 ### end ###
 $rorl = 'local';
 
-# pöh, Crypt::random not there by default -- /dev/random now, portability later
+# pöh, Crypt::random not there by default -- /dev/urandom now;
+# this may actually be portable enough...
 #use Crypt::random qw/makerandom/;
 
 # The first arg '+' option may one day gain format +[[host:port]:port],
@@ -122,7 +123,7 @@ sub readrandom($$)
     }
 }
 
-open I, '<', '/dev/random' or pdie 'open:';
+open I, '<', '/dev/urandom' or pdie 'open:';
 my $sec1; readrandom $sec1, 4; $sec1 = sprintf '%08x', unpack 'L', $sec1;
 my $sec2; readrandom $sec2, 4; $sec2 = sprintf '%08x', unpack 'L', $sec2;
 my $pstp;
@@ -339,9 +340,9 @@ if (defined $localbind) {
 } else {
     print P "hs--comm--data 0 $remotebind $pstp $sec1 $sec2 rest\n";
     while (<P>) { last if $_ eq "hs--comm--sync\n"; }
-    $rhost =~ s/.*@//;
+    $rhost =~ /([^@]+)$/;
 
-    $s = doconnect $rhost, $remotebind, *P;
+    $s = doconnect $1, $remotebind, *P;
 }
 handshake $s, $sec2, $sec1;
 
@@ -361,7 +362,7 @@ if ($reversemount) {
 }
 else {
     warn "$rorl: executing $sshfs_command -o slave @sshfs_xopts\n";
-    exec $sshfs_command, $path, $mnt, qw/-o slave/, @sshfs_xopts;
+    exec $sshfs_command, $rhost.':', $mnt, qw/-o slave/, @sshfs_xopts;
 }
 exit 1;
 
@@ -562,7 +563,7 @@ Tomi Ollila -- too ät iki piste fi
 
 =head1 VERSION
 
-1.0 (2014-12-30)
+1.1 (2015-01-14)
 
 =head1 SEE ALSO
 
