@@ -3,11 +3,215 @@
 #
 # Author: Tomi Ollila -- too ät iki piste fi
 #
-#	Copyright (c) 2014 Tomi Ollila
+#	Copyright (c) 2014-2015 Tomi Ollila
 #	    All rights reserved
 #
 # Created: Sat 07 Jun 2014 19:55:25 EEST too
-# Last modified: Wed 14 Jan 2015 05:45:00 +0200 too
+# Last modified: Fri 20 Feb 2015 20:01:11 +0200 too
+
+=encoding utf8
+
+=head1 NAME
+
+B<sshlessfs> -- sshfs (fuse) mount without live ssh connection
+
+=head1 SYNOPSIS
+
+B<sshlessfs> I<[(-|+)[port]]> I<[options]> I<path> I<mountpoint> I<[tool-options]>
+
+=head1 DESCRIPTION
+
+In the shortest form
+
+=over 4
+
+B<sshlessfs> I<[user@]host:[dir]> I<mountpoint>
+
+=back
+
+This works very much like sshfs -- ssh connection is used to initiate the
+mount, but when initialization is done the data traffic between the hosts
+is carried over plain TCP connection.
+
+The TCP port is chosen randomly between 16384 and 32768. Due to firewall
+configuration this may not be practical. In this case executing the command
+as
+
+=over 4
+
+B<sshlessfs> B<->I<port> I<[user@]host:[dir]> I<mountpoint>
+
+=back
+
+may be useful; the I<port> value specifies the exact TCP port that is used for
+creating the plain TCP connection.
+
+Note that the port is "unbound" immediately after the connection is
+established should it be needed for some other purpose soon after.
+
+Sometimes the connection peer cannot be configured to allow accepting
+connections to any pre-defined ports. However, if the local host can
+do this, then the form
+
+=over 4
+
+B<sshlessfs> B<+>I<[port]> I<[user@]host:[dir]> I<mountpoint>
+
+=back
+
+will make peer connect to locally bound I<port> -- plain B<+> makes use of
+randomly chosen TCP port the same way as the shortest form above.
+
+=head2 "Reverse" Mount
+
+With B<sshlessfs> it is also possible to mount the local filesystem to
+remote mountpoint, by just giving the I<mountpoint> argument in
+I<[user@]host:[dir]> form
+
+=over 4
+
+B<sshlessfs> I<path> I<[user@]host:[dir]>
+
+=back
+
+In this case the local I<path> is attached to I<dir> on the remote I<host>.
+
+=head1 SSHLESSFS OPTIONS
+
+After the first I<(-|+)[port]> and before the I<paths> arguments there are
+the following options available:
+
+=over 4
+
+=item B<-f>
+
+Foreground operation. I.e. do not detach from terminal after mount has been
+established. Also the initial ssh connection stays live -- stderr from remote
+component can be seen on local terminal.
+
+=item B<-p port>
+
+The port to use in B<ssh> connection. Passed as is to ssh(1).
+Do not confuse with the plain TCP port used above.
+
+=item B<--ssh-command>
+
+Use this command instead of 'B<ssh>'. This option has some special
+characteristics:
+
+The value is split to command and arguments using any whitespace as a
+separator. This may have some convenient use cases (like providing options
+to ssh(1) that are not supported by this frontend). This means that there
+cannot be any spaces in the command name -- but see the following if
+support for whitespace in command name is really needed.
+
+However, if the second split string is '-c' then it is expected that the
+user wants to use shell (defined by the shell command being the first split
+string) and rest arguments are concatenated as one string. 2 examples to
+enlighten this feature:
+
+=over 4
+
+=item B<--ssh-command 'sh -c set -x; exec ssh "$0" "$@"'>
+
+Echo the ssh command to be executed (ok, it is already printed but it
+did not used to be... but this visualizes how shell get it's command line
+parameters -- and how spaces can be embedded if needed).
+
+=item B<--ssh-command='sh -c SSH_CLIENT="127.1 1234 22" exec perl'>
+
+Mount local filesystem instead of going remote. With this format all TCP
+port options and mounting options can be locally smoketested. When this is
+used the I<host> option in command line must be B<127>I<[.0.0]>B<.1>.
+
+=back
+
+=item B<--sftp-server>
+
+Run this command instead of B<sftp-server>, "normally" at remote host but
+when doing "reverse" mount, locally. The command name is taken verbatim
+from command line. See TOOL OPTIONS for sftp-server arguments, if needed.
+
+=item B<--sshfs-command>
+
+Run this command instead of B<sshfs>, "normally" locally but when doing
+"reverse" mount, at remote host. The command name is taken verbatim
+from command line. See TOOL OPTIONS for sshfs arguments, if needed.
+
+=back
+
+=head1 TOOL OPTIONS
+
+After the I<paths> arguments the rest arguments go to the tools making the
+sshlessfs mounting work.
+
+The tool providing the mount is B<sshfs>, with I<-o slave> functionality.
+
+The tool serving filesystem data is B<sftp-server>, by default requiring
+no extra (command line) options.
+
+The I<tool-options> provides (optional) options for both, in format:
+
+=over 2
+
+[I<sshfs-options>] [B<--> I<sftp-options>]
+
+=back
+
+For example, if read-only mount is desired (and B<sftp-server> is recent
+enough), adding B<-- -R> at the end of command line will deliver the B<-R>
+option to B<sftp-server>.
+
+Another example: to debug B<sshfs> operations, adding B<-o sshfs_debug> at
+the end of command line will deliver the option to B<sshfs>. In this case
+it is good idea to include B<-f> as B<sshlessfs> options.
+
+Combining both of the above examples would look like:
+
+=over 2
+
+B<sshlessfs -f> I<[user@]host:[dir]> I<mountpoint> B<-o sshfs_debug -- -R>
+
+=back
+
+=head1 BUGS
+
+IPv6 is poorly supported (if at all).
+
+=head1 LICENSE
+
+This is free software; you can redistribute it and/or modify it under the
+same terms as the Perl 5 programming language system itself:
+
+Terms of Perl itself
+
+=over 4
+
+=item a)
+
+the GNU General Public License as published by the Free
+Software Foundation; either version 1, or (at your option) any
+later version, or
+
+=item b)
+
+the "Artistic License"
+
+=back
+
+=head1 AUTHOR
+
+Tomi Ollila -- too ät iki piste fi
+
+=head1 VERSION
+
+1.11 (2015-02-20)
+
+=head1 SEE ALSO
+
+L<sshfs>, L<sftp-server>, L<ssh>, L<utfs>
+
+=cut
 
 ### all ###
 use 5.8.1;
@@ -365,206 +569,3 @@ else {
     exec $sshfs_command, $rhost.':', $mnt, qw/-o slave/, @sshfs_xopts;
 }
 exit 1;
-
-__END__
-
-=encoding utf8
-
-=head1 NAME
-
-B<sshlessfs> -- sshfs (fuse) mount without live ssh connection
-
-=head1 SYNOPSIS
-
-B<sshlessfs> I<[(-|+)[port]]> I<[options]> I<path> I<mountpoint> I<[tool-options]>
-
-=head1 DESCRIPTION
-
-In the shortest form
-
-=over 4
-
-B<sshlessfs> I<[user@]host:[dir]> I<mountpoint>
-
-=back
-
-This works very much like sshfs -- ssh connection is used to initiate the
-mount, but when initialization is done the data traffic between the hosts
-is carried over plain TCP connection.
-
-The TCP port is chosen randomly between 16384 and 32768. Due to firewall
-configuration this may not be "optimal", therefore executing the command as
-
-=over 4
-
-B<sshlessfs> B<->I<port> I<[user@]host:[dir]> I<mountpoint>
-
-=back
-
-the I<port> value specifies the exact TCP port that is used for creating the
-plain TCP connection.
-
-Note that the port is "unbound" immediately after the connection is
-established should it be needed for some other purpose soon after.
-
-Sometimes the connection peer cannot be configured to allow accepting
-connections to any pre-defined ports. However, if the "local" host can
-do this, then the form
-
-=over 4
-
-B<sshlessfs> B<+>I<[port]> I<[user@]host:[dir]> I<mountpoint>
-
-=back
-
-will make peer connect to locally bound I<port> -- plain B<+> makes use of
-randomly chosen TCP port the same way as the "shortest" form.
-
-=head2 "Reverse" Mount
-
-With B<sshlessfs> it is also possible to mount the local filesystem to
-remote mountpoint, by just giving the I<mountpoint> argument in
-I<[user@]host:[dir]> form
-
-=over 4
-
-B<sshlessfs> I<path> I<[user@]host:[dir]>
-
-=back
-
-In this case the local I<path> is attached to I<dir> in remote I<host>.
-
-=head1 SSHLESSFS OPTIONS
-
-After the first I<(-|+)[port]> and before the I<paths> arguments there are
-the following options available:
-
-=over 4
-
-=item B<-f>
-
-Foreground operation. I.e. do not detach from terminal after mount has been
-established. Also the initial ssh connection stays live -- stderr from remote
-component can be seen on local terminal.
-
-=item B<-p port>
-
-The port to use in B<ssh> connection. Passed as is to ssh(1).
-Do not confuse with the plain TCP port used above.
-
-=item B<--ssh-command>
-
-Use this command instead of 'B<ssh>'. This option has some special
-characteristics:
-
-The value is split to command and arguments using any whitespace as a
-separator. This may have some convenient use cases (like providing options
-to ssh(1) that are not supported by this frontend). This means that there
-cannot be any spaces in the command name -- but see the following if
-support for whitespace in command name is really needed.
-
-However, if the second split string is '-c' then it is expected that the
-user wants to use shell (defined by the shell command by first split string)
-and rest arguments are concatenated as one string. 2 examples to enlighten
-this feature:
-
-=over 4
-
-=item B<--ssh-command 'sh -c set -x; exec ssh "$0" "$@"'>
-
-Echo the ssh command to be executed (ok, it is already printed but it
-did not used to be... but this visualizes how shell get it's command line
-parameters -- and how spaces can be embedded if needed).
-
-=item B<--ssh-command='sh -c SSH_CLIENT="127.1 1234 22" exec perl'>
-
-Mount local filesystem instead of going remote. With this format all TCP
-port options and mounting options can be locally smoketested. When this is
-used the I<host> option in command line needs to be B<127>I<[.0.0]>B<.1>.
-
-=back
-
-=item B<--sftp-server>
-
-Run this command instead of B<sftp-server>, "normally" at remote host but
-when doing "reverse" mount, locally. The command name is taken verbatim
-from command line. See TOOL OPTIONS for sftp-server arguments, if needed.
-
-=item B<--sshfs-command>
-
-Run this command instead of B<sshfs>, "normally" locally but when doing
-"reverse" mount, at remote host. The command name is taken verbatim
-from command line. See TOOL OPTIONS for sshfs arguments, if needed.
-
-=back
-
-=head1 TOOL OPTIONS
-
-After the I<paths> arguments the rest arguments go to the tools making the
-sshlessfs mounting work.
-
-The tool providing the mount is B<sshfs>, with I<-o slave> functionality.
-
-The tool serving filesystem data is B<sftp-server>, by default requiring
-no extra (command line) options.
-
-The I<tool-options> provides (optional) options for both, in format:
-
-=over 2
-
-[I<sshfs-options>] [B<--> I<sftp-options>]
-
-=back
-
-For example, if read-only mount is desired (and B<sftp-server> is recent
-enough), adding B<-- -R> at the end of command line will deliver the B<-R>
-option to B<sftp-server>.
-
-Another example: to debug B<sshfs> operations, adding B<-o sshfs_debug> at
-the end of command line will deliver the option to B<sshfs>. In this case
-it is good idea to include B<-f> as B<sshlessfs> options.
-
-Combining both of the above examples would look like:
-
-=over 2
-
-B<sshlessfs -f> I<[user@]host:[dir]> I<mountpoint> B<-o sshfs_debug -- -R>
-
-=back
-
-=head1 BUGS
-
-IPv6 is poorly supported (if at all).
-
-=head1 LICENSE
-
-This is free software; you can redistribute it and/or modify it under the
-same terms as the Perl 5 programming language system itself:
-
-Terms of Perl itself
-
-=over 4
-
-=item a)
-
-the GNU General Public License as published by the Free
-Software Foundation; either version 1, or (at your option) any
-later version, or
-
-=item b)
-
-the "Artistic License"
-
-=back
-
-=head1 AUTHOR
-
-Tomi Ollila -- too ät iki piste fi
-
-=head1 VERSION
-
-1.1 (2015-01-14)
-
-=head1 SEE ALSO
-
-L<sshfs>, L<sftp-server>, L<ssh>
