@@ -1,0 +1,42 @@
+One Too Many
+============
+
+All of the applications and utilities of this repository
+consists of just a single file.
+
+This readme is (supposedly) the one too many (and that's good).
+
+Each of these files includes their own License/Copyright information.
+
+
+for users
+---------
+
+link:sshlessfs[sshlessfs]
+
+Mount filesystem from remote system like sshfs but data connection for
+transferring filesystem content between hosts is unencrypted.
+
+In addition to "normal" mount also "reverse" mount is avaible; i.e. local
+filesystem is mounted to remote host.
+
+Sshlessfs uses ssh to create connection between hosts and when that is
+created it launches sshfs(1) to the host where filesystem is to be
+mounted and sftp-server(8) to the host which provides the filesystem.
+
+
+developer tools
+---------------
+
+link:uni2htmldiff.py[uni2htmldiff.py]
+
+Create side-by-side html 5 document from unified diff source.
+
+Example run
+....
+   $ git show 5d00a0440 | ./uni2htmldiff.py -o difftest.html 88 -
+   $ echo file://$PWD/difftest.html
+....
+and give the resulting file:// url to web browser for further inspection.
+
+~Note to self: check out ssdiff~
