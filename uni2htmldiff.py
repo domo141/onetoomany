@@ -8,7 +8,7 @@
 #           All rights reserved
 #
 # Created: Wed 25 Mar 2015 23:15:33 EET too
-# Last modified: Tue 14 Apr 2015 20:03:01 +0300 too
+# Last modified: Mon 27 Apr 2015 20:21:56 +0300 too
 
 """Create html page (side-by-side tables) from unified diff input."""
 # Tested to work on (some installations of) python 2.6.6 and python 3.3.2.
@@ -47,8 +47,8 @@ def warn(*_list):
 
 # global "variables" put in a class; no objects instantiated...
 class G:
-    version = '1.0'
-    verdate = '2015-04-14'
+    version = '1.1'
+    verdate = '2015-04-27'
     from_encoding = None
     to_encoding = None
     tabsize = None
@@ -287,9 +287,9 @@ def dodiff(old, new, ln):
 
 
 diffline_set = set((' ', '-', '+', '@'))
-def print_addrem(addrem, cls, name, gen):
-    print('<p><span class="{2}"><b><tt>{0}:'
-          ' {1}</tt></b></span></p>'.format(addrem, he(name), cls))
+def print_addrem(gtlt, pm3, cls, name, gen):
+    print('<p><span class="{3}"><b><tt>{0} {1}'
+          ' {2} {1}</tt></b></span></p>'.format(gtlt, pm3, he(name), cls))
     for line in gen:
         if line[0] not in diffline_set:
             break
@@ -390,10 +390,10 @@ def uni2htmldiff(files):
             ln = [ int(m.group(1)), int(m.group(2)) ]
             if G.addrem:
                 if ln[0] == 0:
-                    print_addrem('»+++»', 'b', right, gen)
+                    print_addrem('>', '+++', 'b', right, gen)
                     continue
                 elif ln[1] == 0:
-                    print_addrem('«---«', 't', left, gen)
+                    print_addrem('<', '---', 't', left, gen)
                     continue
                 pass
             print_table(left, right)
@@ -431,6 +431,7 @@ hr { display: block;
      margin-top: 2px;  margin-bottom: 0px;
      margin-left: 0px;  margin-right: 0px;
      border-style: solid black;  border-width: 1px; }
+p { margin: 3px; }
 th { background-color: #bbbbbb;  padding-top: 1px;  padding-bottom: 2px; }
 td { padding: 0px 1px; white-space: pre; }
 .h { background-color: #cccccc;  text-align: right; }
