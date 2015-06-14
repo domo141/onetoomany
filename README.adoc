@@ -27,14 +27,14 @@ mounted and sftp-server(8) to the host which provides the filesystem.
 middle ground
 -------------
 
-link:insync.pl[insync.pl]
+link:nowsync.pl[nowsync.pl]
 
-Copy local directory tree to one or more remote directories and keep syncing
-further changes to remotes.
+Synchronizes local directory tree to one or more remote directories and keeps
+updating further changes to remotes.
 
 Linux inotify(7) is used to recognize changes in the local file system
 
-Simplest usage command line is +insync.pl . remotehost:remotedir+
+Simplest usage command line is +nowsync.pl . remotehost:remotedir+
 which copies local current directory (tree) to 'remotedir' at 'remotehost'.
 
 developer tools

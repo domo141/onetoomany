@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # -*- mode: cperl; cperl-indent-level: 4 -*-
-# $ insync.pl $
+# $ nowsync.pl $
 #
 # Author: Tomi Ollila -- too ät iki piste fi
 #
@@ -8,25 +8,25 @@
 #	    All rights reserved
 #
 # Created: Sat 16 May 2015 11:40:42 EEST too
-# Last modified: Thu 11 Jun 2015 22:51:46 +0300 too
+# Last modified: Sun 14 Jun 2015 14:43:52 +0300 too
 
 =encoding utf8
 
 =head1 NAME
 
-B<insync.pl> -- keep local files in sync with remote hosts
+B<nowsync.pl> -- continuously update directory tree to remote hosts
 
 =head1 SYNOPSIS
 
-B<insync.pl> I<[--help]> I<[--exclude re [--exclude re...]]> I<[--limit num]>
+B<nowsync.pl> I<[--help]> I<[--exclude re [--exclude re...]]> I<[--limit num]>
     I<[--max-size size]> I<[-T]>
     I<[--ssh-command cmd  [args]]> I<[--perl-command cmdline]>
     I<path>  I<remote:path [remote:path...]>
 
 =head1 DESCRIPTION
 
-I<Insync> copies contents of a given local directory recursively to one or
-more remote directories and then continues copying file and directory
+I<Nowsync> synchronizes contents of a given local directory recursively to
+one or more remote directories and then continues updating file and directory
 changes to these remote systems. inotify(7) is used to recognize changes
 after initial sync (which probably restricts local host to be linux machine
 but remote host can also be running some other operating system).
@@ -40,7 +40,7 @@ As of today this is mainly targeted for developer use and the "diagnostics"
 output look like so. Devote one terminal window for monitoring the events
 and traffic with the remote hosts. If it is unsuitable for having one terminal
 reserved for this use, use e.g. dtach(1), screen(1), tmux(1) to detach
-I<insync> from terminal (and if you want to store logs, consider using
+I<nowsync> from terminal (and if you want to store logs, consider using
 script(1)).
 
 =head1 OPTIONS
@@ -49,7 +49,7 @@ Minimal command line is
 
 =over 4
 
-B<insync.pl> B<local-dir> B<[user@]remote-host:remote-dir>
+B<nowsync.pl> B<local-dir> B<[user@]remote-host:remote-dir>
 
 =back
 
@@ -67,7 +67,7 @@ B<--exclude '^[.]git$'> B<--exclude '[~#]'>
 
 The exclude option(s) are basically in extended reqular expression format,
 and in the above line single quotes are used to escape the options from
-shell expansion. The above excludes would make I<insync> exclude any
+shell expansion. The above excludes would make I<nowsync> exclude any
 directory (or file) which name is '.git' and also any file (or directory)
 name that contains character '~' or '#'. The match is made to the filename
 without the leading directories -- for example B<--exclude a/b> would never
@@ -157,7 +157,7 @@ will be referencing the new file (with the same name).
 
 =head1 BUGS
 
-The quality of I<insync> is adequate for most of the purposes. To make this
+The quality of I<nowsync> is adequate for most of the purposes. To make this
 perfect would require significant amount of time and resources. Perhaps
 some of the simplest/most needed misfeatures are fixed, either by sudden
 burst of enthusiasm or use case for the features arise.
@@ -254,6 +254,18 @@ Tomi Ollila -- too ät iki piste fi
 1.0 (2015-06-11)
 
 =cut
+
+# History
+#
+# 1.1  2015-06-14  txtonly bug fix, 4th iteration of the name
+#
+#  Checking whether with -T whether file is (ASCII or UTF-8) text file
+#  used wrong "variable" for the file; in addtion that it did not work
+#  correctly it broke futher checks on same file. Additionally the check
+#  was in wrong place, effectively blocking all subdirectories.
+#
+# 1.0  2015-06-11  initial release, 3rd iteration of the name
+#
 
 # FUTURE PLANS
 #   Note: these may hinder bug fixes...
@@ -420,13 +432,13 @@ sub scan($)
 	    pwarn "skipping symlink '$file'";
 	    next;
 	}
-	if ($txtonly and -B $_) {
-	    pwarn "skipping presumably binary file '$file'";
-	    next;
-	}
 	unless (-f _) {
 	    push @dirs, $file if -d _;
 	    #print "xxx $_[0] '$file'\n" unless -d $file;
+	    next;
+	}
+	if ($txtonly and -B _) {
+	    pwarn "skipping presumably binary file '$file'";
 	    next;
 	}
 	@st = stat _;
@@ -438,7 +450,7 @@ sub scan($)
 	push @list, #[ $st[2] & 0777, $st[9], $st[7], '//', $file ];
 	  sprintf "%o %ld %ld // %s", $st[2] & 0777, $st[9], $size, $file;
     }
-    @files = ();
+    undef @files;
     foreach (@dirs) {
 	@st = stat $path . $_;
 	push @list, #[ $st[2] & 0777 | 01000, $st[9], $st[7], '//', $_ ];
@@ -464,7 +476,7 @@ die "Found too many files ($#list) (limit $limit).\n" .
 
 my @remotes;
 
-eval 'END { $SIG{ALRM} = sub { pwarn "insync exit"; exit 0; };
+eval 'END { $SIG{ALRM} = sub { pwarn "nowsync exit"; exit 0; };
 	select undef, undef, undef, 0.1;
 	$SIG{TERM} = q"IGNORE"; kill q"TERM", 0;
 	alarm 2; 1 while (wait >= 0); alarm 0; $SIG{ALRM}()}';
@@ -490,12 +502,12 @@ foreach (@ARGV) {
 	open STDOUT, '>&', $fd2 or pdie;
 	$ENV{LC_ALL} = $ENV{LANG} = 'C';
 	warn "running '", join("' '", @ssh_command),
-	  "' '-T' '$rhost' '$perl_command - insync-server'\n";
+	  "' '-T' '$rhost' '$perl_command - nowsync-server'\n";
 	syswrite $fd2, 'ready.' or pdie;
 	# --ssh-command options for development & testing (note spacing):
 	# --ssh-command='sh  -c  cat >&2'  # to see what code is sent remote
 	# --ssh-command='perl  -'          # to test on local fs
-	exec @ssh_command, '-T', $rhost, "$perl_command - insync-server";
+	exec @ssh_command, '-T', $rhost, "$perl_command - nowsync-server";
 	exit 1;
     }
     #parent
