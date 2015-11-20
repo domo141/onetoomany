@@ -1,0 +1,425 @@
+#!/usr/bin/perl
+# -*- mode: cperl; cperl-indent-level: 4 -*-
+# $ sfv -- simple file versions $
+#
+# Author: Tomi Ollila -- too ät iki piste fi
+#
+#	Copyright (c) 2015 Tomi Ollila
+#	    All rights reserved
+#
+# Created: Wed 24 Jun 2015 11:30:49 EEST too
+# 1st version: Thu 25 Jun 2015 14:06:54 +0300 too
+# Last modified: Fri 20 Nov 2015 21:37:38 +0200 too
+
+# commit versions to ,sfv file without editing the original
+# file format: *ar(5)*, with 'sfv.<num>.logN' and 'sfv.<num>.file' entries
+# currently this knows '.log1' "format", '.log0' is for dev/exp use
+
+use 5.8.1;
+use strict;
+use warnings;
+
+use File::Temp qw/ tempdir /;
+
+$ENV{'PATH'} = '/sbin:/usr/sbin:/bin:/usr/bin';
+
+my $n = (ord $0 == 47)? ( ($0 =~ /([^\/]+)$/), $1 ): $0;
+my $cmd;
+
+sub do_commit($$);
+sub commit () ## record changes to the versions file
+{
+    die "Usage: $n $cmd [-m message] file\n" unless @ARGV;
+    my $msg;
+    if ($ARGV[0] eq '-m') {
+	die "Message arg for -m or filename missing." unless @ARGV == 3;
+	$msg = $ARGV[1]; splice @ARGV, 0, 2;
+    }
+    elsif ($ARGV[0] =~ /-m(.*)/) {
+	die "Filename arg after $ARGV[0] missing." unless @ARGV == 2;
+	$msg = $1; shift @ARGV;
+    }
+    else { die "Too many args.\n" unless @ARGV == 1; }
+    do_commit $ARGV[0], $msg;
+}
+
+sub do_diff($$$@);
+sub diff () ## show changes between version(s) or current file
+{
+    die "Usage: $n $cmd [--diff cmdline] [aver [bver]] file\n" unless @ARGV;
+    my @diff_cmd;
+    if ($ARGV[0] eq '--diff') {
+	die "diff command(line) (or further args) missing\n" unless @ARGV > 2;
+	@diff_cmd = split / /, $ARGV[1]; splice @ARGV, 0, 2;
+    }
+    elsif ($ARGV[0] =~ /--diff=(.*)/) {
+	die "further args after --diff missing\n" unless @ARGV > 1;
+	@diff_cmd = split / /, $1; shift @ARGV;
+    }
+    else { @diff_cmd = qw/diff -u/; }
+
+    die "'$ARGV[0]': no such option\n" if $ARGV[0] =~ /^--./;
+
+    sub chk_ver($) {
+	die "'$_[0]' is not suitable version argument\n"
+	  unless $_[0] =~ /^-?\d+$/;
+    }
+    die "Too many args.\n" if @ARGV > 3;
+    my ($v1, $v2) = (-1, 0);
+    $v2 = $ARGV[1], chk_ver $v2 if @ARGV > 2;
+    $v1 = $ARGV[0], chk_ver $v1 if @ARGV > 1;
+
+    do_diff $ARGV[$#ARGV], $v1, $v2, @diff_cmd;
+}
+
+
+sub do_cat($$);
+sub cat () ## output version of a file to stdout
+{
+    die "Usage: $n $cmd [version] file\n" unless @ARGV;
+    die "Too many args.\n" if @ARGV > 2;
+    my $v1 = -1;
+    $v1 = $ARGV[0], shift @ARGV, chk_ver $v1 if @ARGV > 1;
+    do_cat $ARGV[0], $v1;
+}
+
+sub do_log($);
+sub log () ## show commit logs
+{
+    die "Usage: $n $cmd file\n" unless @ARGV == 1;
+
+    do_log $ARGV[0];
+}
+
+my %ch = qw/com commit comm commit commi commit commit commit
+	    dif diff diff diff
+	    cat cat
+	    log log/;
+#	    ls ls/;
+
+sub xopenI($) {
+    open I, '<', $_[0] or die "Cannot open $_[0] for reading: $!\n";
+}
+sub xopenO($) {
+    open O, '>', $_[0] or die "Cannot open $_[0] for writing: $!\n";
+}
+
+unless (@ARGV) {
+    print <<"EOF";
+\nUsage: $n {command} [args]
+
+ sfv -- simple file versions, is a single file version control system where
+        file content with accompanied log message is stored in {filename},sfv
+        -- the file format is ar(5), and the original file is never modified
+        gzip will often complain: stdin: unexpected end of file -- ignore that
+
+$n 1.0 commands available:
+
+EOF
+    xopenI $0;
+    while (<I>) {
+	next unless /^sub\s+(\w+)\s+\(\)\s+##\s+(.*)/;
+	printf "  %-7s %s\n", $1, $2;
+    }
+    close I;
+    print "\n in version arguments, 0 is current file, -1 newest version\n";
+    print " -2 second newest and positive numbers are absolute versions\n";
+    print "\nCommand may be abbreviated to any unambiquous 3+ letter prefix";
+    print "\n\n";
+    exit;
+}
+$cmd = $ch{$ARGV[0]};
+die "'$n': no such command as '$ARGV[0]'\n" unless defined $cmd;
+my $coderef = __PACKAGE__->can($cmd) or die "$cmd not found"; # tnx perl monks
+shift;
+$coderef->();
+
+exit;
+
+# ----
+
+sub mksfvtmpfile($)
+{
+    my $tmpfile = $_[0] . ",sfv,$$";
+    # note, it is theoretically possible that on network fs same pid
+    # on another machine is simultaneously accessing the same file..."
+    die "'$tmpfile exists!!!\n" if -f $tmpfile;
+    eval "END { unlink '$tmpfile'; }";
+    return $tmpfile;
+}
+
+sub bt_exec(@)
+{
+    my $buf = '';
+    open P, '-|', @_;
+    1 while (sysread(P, $buf, 65536, length $buf) > 0);
+    close P;
+    return $buf;
+}
+
+sub xsysreadI($$)
+{
+    my $len = sysread I, $_[0], $_[1];
+    return if $len == $_[1]; # XXX will complain if undef :(
+    my $o = 0;
+    do {
+	die "sysread: $!\n" unless defined $len;
+	die "sysread: eof!\n" unless $len;
+	$o+= $len;
+	$len = sysread I, $_[0], $_[1] - $o, $o;
+    } while ($len != $_[1] - $o); # ditto
+}
+
+sub chk_file($$)
+{
+    my $size = -s $_[0];
+    # XXX alternatives: perl impl, sha1, openssl sha1
+    my $sha1sum = bt_exec 'sha1sum', $_[0]; $sha1sum =~ s/\s.*//s;
+    my $sfvfile = $_[1];
+    my $version;
+    if (-f $sfvfile) {
+	my $buf;
+	xopenI $sfvfile;
+	sysread I, $buf, 68;
+	die "$sfvfile does not start with '!<arch>\\n'\n"
+	  unless $buf =~ /^!<arch>\n/;
+	my @list = split /\s+/, $buf; #print "$_\n" foreach (@list); exit;
+	die "$sfvfile does not have expected first filename\n"
+	  unless $list[1] =~ /^sfv[.](\d\d\d\d\d\d)[.]log1/;
+	$version = $1 + 0;
+	sysread I, $buf, $list[6] or die $!;
+	close I;
+	die "Could not read expected $list[6] bytes\n"
+	  unless $list[6] == length $buf;
+	@list = split /\n/, $buf;
+	my ($psize, $psum);
+	foreach (@list) {
+	    $psize = $1, next if /^size:\s+(\d+)/;
+	    $psum = $1, next if /^sha1:\s+(\S+)/;
+	}
+	if (defined $psize and $psize == $size
+	    and defined $psum and $sha1sum eq $psum) {
+	    die "File is identical to the latest version $version\n";
+	}
+	$version++;
+    }
+    else { $version = 1; }
+
+    return ($size, $sha1sum, $version);
+}
+
+sub get_editor_msg()
+{
+    my $tmpdir = tempdir(CLEANUP => 1);
+    my $editor = $ENV{EDITOR};
+    $editor = 'vi' unless defined $editor;
+    xopenO "$tmpdir/commit-message"; close O;
+    system $editor, "$tmpdir/commit-message";
+    my $msg = bt_exec 'cat', "$tmpdir/commit-message";
+    return $msg;
+}
+
+# ----
+
+sub do_commit($$)
+{
+    my $file = $_[0];
+    $file =~ s/,sfv$//;
+    die "'$file': no such file\n" unless -f $file;
+    my @st = stat _;
+    my $sfvfile = $file . ',sfv';
+    # XXX bring parts of chk_file() back (rest refactored to generic use)
+    my ($size, $sha1sum, $version) = chk_file $file, $sfvfile;
+    my $tmpfile = mksfvtmpfile $file;
+    # $_[1] is alias to an lvalue..
+    $_[1] = get_editor_msg() unless defined $_[1];
+    $_[1] =~ s/^\s+//; $_[1] =~ s/\s+$//;
+    die "Empty commit message.\n" unless $_[1];
+    $_[1] = "name: $file\n" .
+      "size: $size\n" .
+      "sha1: $sha1sum\n" .
+      "compression: gzip\n" .
+      "--\n$_[1]\n";
+
+    xopenO $tmpfile;
+
+    print O "!<arch>\n";
+    #printf O "%-16s1234567890  0     0     100644  %-10d\140\012", "$_/", -s _
+
+    printf O "sfv.%06d.log1 %-10d  0     0     100644  %-10d\140\012",
+      $version, time, length $_[1];
+    print O $_[1];
+    print O "\n" if length $_[1] & 1;
+    my $pos = tell(O) + 48;
+    printf O "sfv.%06d.file %-10d  0     0     100644  %-10d\140\012",
+      $version, $st[9], 0;
+    binmode O; # flush!
+    unless (fork) {
+	open(STDOUT, '>&', \*O) or die "Cannot dup O: $!\n";
+	exec qw/gzip -9 -n -c/, $file;
+	exit 7; # should not be reached
+    }
+    wait; exit if $?;
+    sysseek O, $pos, 0 or die "Cannot seek O to file pos $pos: $!\n";
+    my $fs = -s $tmpfile;
+    syswrite O, $fs - $pos - 12;
+    sysseek O, 0, 2 or die "Cannot seek O to the end: $!\n";
+    syswrite O, "\n" if $fs & 1;
+    if (-f $sfvfile) {
+	unless (fork) {
+	    open(STDOUT, '>&', \*O) or die "Cannot dup O: $!\n";
+	    exec qw/tail -c +9/, $sfvfile;
+	    exit 7; # should not be reached
+	}
+	wait; exit if $?;
+    }
+    close O;
+    rename $tmpfile, $sfvfile;
+    my $mode = 0444 & (umask ^ 0777);
+    chmod $mode, $sfvfile;
+}
+
+# xxx may be utilized in commit too...
+sub open_sfvfile($)
+{
+    my $sfvfile = $_[0];
+    $sfvfile = $sfvfile . ',sfv' unless $sfvfile =~ /,sfv$/;
+    xopenI $sfvfile;
+    my $buf;
+    sysread I, $buf, 8;
+    die "$sfvfile does not start with '!<arch>\\n'\n"
+      unless $buf eq "!<arch>\n";
+    return $sfvfile;
+}
+
+sub xr($)
+{
+    sub _xr {
+	my $o = ord $1;
+	return $1 if $o >= 32 && $o <= 126;
+	return sprintf '\x%02x', $o;
+    }
+    $_ = $_[0]; s/(.)/_xr/ge;
+    return $_;
+}
+
+sub arhdr($$)
+{
+    my @list = split /\s+/, $_[0];
+    my $ver;
+    # constant regexps
+    if ($_[1]) {
+      	die "ar(1) data '",xr $_[0],"' does not start with 'sfv.nnnnnn.file'\n"
+	  unless $list[0] =~ /^sfv[.](\d\d\d\d\d\d)[.]file$/;
+	$ver = $1 + 0;
+    } else {
+      	die "ar(1) data '",xr $_[0],"' does not start with 'sfv.nnnnnn.log1'\n"
+	  unless $list[0] =~ /^sfv[.](\d\d\d\d\d\d)[.]log1$/;
+	$ver = $1 + 0;
+    }
+    return ( $ver, $list[1], $list[5] );
+}
+
+sub do_log($)
+{
+    open_sfvfile $_[0];
+    my $buf;
+    while (sysread(I, $buf, 60) == 60) {
+	my ($ver, $secs, $len) = arhdr $buf, 0;
+	print 'Version ', $ver, ' (', scalar localtime $secs, ")\n";
+	xsysreadI $buf, $len;
+	my $dbuf;
+	xsysreadI $dbuf, 1 if $len & 1;
+
+	xsysreadI $dbuf, 60;
+	($ver, $secs, $len) = arhdr $dbuf, 1;
+	print "file date: ", scalar localtime $secs, "\n", $buf, "\n";
+	my $l = $len + ($len & 1);
+	xsysreadI $buf, $l;
+    }
+}
+
+sub find_version($)
+{
+    my $v = $_[0];
+    my $buf;
+    while (sysread(I, $buf, 60) == 60) {
+	my ($ver, $secs, $len) = arhdr $buf, 0;
+	my ($buf, $c);
+	xsysreadI $buf, $len;
+	xsysreadI $c, 1 if $len & 1;
+	if ($v < 0) {
+	    $v++;
+	    return ($ver, $secs, $buf, $len) if $v == 0;
+	}
+	else {
+	    if ($v >= $ver) {
+		return ($ver, $secs, $buf, $len) if $v == $ver;
+		die "Cannot find version $_[0]\n";
+	    }
+	}
+	xsysreadI $buf, 60;
+	($ver, $secs, $len) = arhdr $buf, 1;
+	xsysreadI $buf, $len;
+	xsysreadI $c, 1 if $len & 1;
+    }
+    die "Cannot find version $_[0]\n";
+}
+
+sub cat_data($)
+{
+    my $buf;
+    xsysreadI $buf, 60;
+    my ($ver, $secs, $len) = arhdr $buf, 1;
+    unless (fork) {
+	open(STDIN, '>&', \*I) or die "Cannot dup I: $!\n";
+	if ($_[0]) {
+	    open(STDOUT, '>&', \*O) or die "Cannot dup O: $!\n";
+	}
+	exec qw/gzip -cdq/;
+    }
+    wait;
+    utime time, $secs, $_[0] if $_[0];
+    return ($? == 0 or $? == 2);
+}
+
+sub do_diff($$$@)
+{
+    return 0 if $_[1] == $_[2]; # includes $_[1] == 0 && $_[2] == 0
+    $_[0] =~ s/,sfv$//;
+    open_sfvfile $_[0];
+    my $tmpdir = tempdir(CLEANUP => 1);
+    my $af;
+    if ($_[1] != 0) {
+	my ($version, @rest) = find_version $_[1];
+	$af = "$tmpdir/version.$version";
+	xopenO $af;
+	cat_data $af;
+	close O;
+    }
+    else { $af = $_[0]; }
+    my $bf;
+    if ($_[2] != 0) {
+	sysseek I, 8, 0;
+	my ($version, @rest) = find_version $_[2];
+	$bf = "$tmpdir/version.$version";
+	xopenO $bf;
+	cat_data $bf;
+	close O;
+    }
+    else { $bf = $_[0]; }
+    close I;
+    splice @_, 0, 3;
+    #system qw/ls -l/, $tmpdir;
+    system @_, $af, $bf; # no exec so that tmpdir cleanup works.
+}
+
+sub do_cat($$)
+{
+    $_[0] =~ s/,sfv$//;
+    exec ('cat', $_[0]), exit 1 unless $_[1];
+    open_sfvfile $_[0];
+    my ($version, @rest) = find_version $_[1];
+    print STDERR "Version $version:\n";
+    exit cat_data 0;
+}

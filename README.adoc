@@ -12,7 +12,7 @@ Each of these files includes their own License/Copyright information.
 for users
 ---------
 
-link:sshlessfs[sshlessfs]
+==== link:sshlessfs[sshlessfs]
 
 Mount filesystem from remote system like sshfs but data connection for
 transferring filesystem content between hosts is unencrypted.
@@ -27,9 +27,15 @@ mounted and sftp-server(8) to the host which provides the filesystem.
 middle ground
 -------------
 
-link:nowsync.pl[nowsync.pl]
+==== link:sfv[sfv]
 
-Synchronizes local directory tree to one or more remote directories and keeps
+Manage versions of a file in a +{filename},sfv+ file. The file format for
++,sfv+ file is 'ar(5)' and the original file is never modified by this tool.
+
+
+==== link:nowsync.pl[nowsync.pl]
+
+Synchronize local directory tree to one or more remote directories and keeps
 updating further changes to remotes.
 
 Linux inotify(7) is used to recognize changes in the local file system
@@ -40,7 +46,7 @@ which copies local current directory (tree) to 'remotedir' at 'remotehost'.
 developer tools
 ---------------
 
-link:uni2htmldiff.py[uni2htmldiff.py]
+==== link:uni2htmldiff.py[uni2htmldiff.py]
 
 Create side-by-side html 5 document from unified diff source.
 
