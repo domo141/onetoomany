@@ -9,11 +9,13 @@
 #
 # Created: Wed 24 Jun 2015 11:30:49 EEST too
 # 1st version: Thu 25 Jun 2015 14:06:54 +0300 too
-# Last modified: Fri 20 Nov 2015 21:37:38 +0200 too
+# Last modified: Fri 20 Nov 2015 21:53:06 +0200 too
 
 # commit versions to ,sfv file without editing the original
 # file format: *ar(5)*, with 'sfv.<num>.logN' and 'sfv.<num>.file' entries
 # currently this knows '.log1' "format", '.log0' is for dev/exp use
+
+# License: either GPLv1+ or "Artistic" (i.e. the same as Perl5).
 
 use 5.8.1;
 use strict;
