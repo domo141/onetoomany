@@ -9,7 +9,7 @@
 #
 # Created: Wed 24 Jun 2015 11:30:49 EEST too
 # 1st version: Thu 25 Jun 2015 14:06:54 +0300 too
-# Last modified: Fri 20 Nov 2015 21:53:06 +0200 too
+# Last modified: Sun 05 Jun 2016 23:09:38 +0300 too
 
 # commit versions to ,sfv file without editing the original
 # file format: *ar(5)*, with 'sfv.<num>.logN' and 'sfv.<num>.file' entries
@@ -37,7 +37,7 @@ sub commit () ## record changes to the versions file
 	die "Message arg for -m or filename missing." unless @ARGV == 3;
 	$msg = $ARGV[1]; splice @ARGV, 0, 2;
     }
-    elsif ($ARGV[0] =~ /-m(.*)/) {
+    elsif ($ARGV[0] =~ /^-m(.*)/) {
 	die "Filename arg after $ARGV[0] missing." unless @ARGV == 2;
 	$msg = $1; shift @ARGV;
     }
