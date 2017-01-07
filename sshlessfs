@@ -7,7 +7,7 @@
 #	    All rights reserved
 #
 # Created: Sat 07 Jun 2014 19:55:25 EEST too
-# Last modified: Fri 20 Feb 2015 20:01:11 +0200 too
+# Last modified: Sat 07 Jan 2017 11:56:48 +0200 too
 
 =encoding utf8
 
@@ -527,7 +527,7 @@ EOF
     print P <<'EOF';
 open STDIN, '<&', \$s or pdie;
 open STDOUT, '>&', \$s or pdie;
-$ENV{PATH} = '/usr/libexec/openssh:/usr/lib/openssh:/usr/lib/ssh';
+$ENV{PATH} = '/usr/libexec/openssh:/usr/lib/openssh:/usr/lib/ssh:/usr/libexec';
 warn "$rorl: executing $cmd @args\n";
 exec $cmd, @args;
 #exec '/usr/bin/strace', $cmd, @args;
@@ -560,7 +560,7 @@ open STDOUT, '>&', \$s or pdie;
 
 if ($reversemount) {
     chdir $path || pdie "chdir '$path':";
-    $ENV{PATH} = '/usr/libexec/openssh:/usr/lib/openssh:/usr/lib/ssh';
+    $ENV{PATH} = '/usr/libexec/openssh:/usr/lib/openssh:/usr/lib/ssh:/usr/libexec';
     warn "$rorl: executing $sftp_server @sftp_xopts\n";
     exec $sftp_server, @sftp_xopts;
 }
