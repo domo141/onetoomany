@@ -58,6 +58,7 @@ Manage versions of a file in a +{filename},sfv+ file. The file format for
 developer tools
 ---------------
 
+
 ==== link:uni2htmldiff.py[uni2htmldiff.py]
 
 Create side-by-side html 5 document from unified diff source.
@@ -70,3 +71,22 @@ Example run
 and give the resulting file:// url to web browser for further inspection.
 
 ~Note to self: check out ssdiff~
+
+
+server setups
+-------------
+
+
+==== link:gitrepos.sh[gitrepos.sh]
+
+Share git repositories (and files) among friendly and polite users.
+
+This provides somewhat more features than git-shell(1) but less than
+e.g. gitolite (git-wise).
+
+For filesystem access one(tm), in addition to simple scp, can activate
+sftp-server (for sftp/sshfs!) feature (by removing some comments)...
+
+Not much effort has been done to ensure safety from malicious intent,
+but some protection against accidental damage from friendly and polite
+people has been implemented.
