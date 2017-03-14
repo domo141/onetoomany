@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Wed 01 Mar 2017 19:25:24 EET too
-# Last modified: Sun 12 Mar 2017 19:34:42 +0200 too
+# Last modified: Tue 14 Mar 2017 08:52:15 +0200 too
 
 # Some documentation at the end. License: 2-Clause (Simplified) BSD
 
@@ -33,7 +33,7 @@ saved_IFS=$IFS; readonly saved_IFS
 
 die () { printf '%s\n' "$*"; exit 1; } >&2
 
-test $#${1-} = 2-c || {
+test "$#${1-}" = 2-c || {
 	exec >&2
 	echo Commands available:
 	echo '  git-*    git ... '
