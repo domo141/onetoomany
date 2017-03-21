@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Wed 01 Mar 2017 19:25:24 EET too
-# Last modified: Tue 14 Mar 2017 08:52:15 +0200 too
+# Last modified: Tue 21 Mar 2017 23:15:36 +0200 too
 
 # Some documentation at the end. License: 2-Clause (Simplified) BSD
 
@@ -50,8 +50,8 @@ test "$#${1-}" = 2-c || {
 #env >&2
 #echo $# "$@" >&2
 
-case $2 in *[!a-zA-Z0-9.,\ \'~/-]*)
-	die "$2: characters outside supported range (a-z A-Z 0-9 '.,~/-)";
+case $2 in *[!a-zA-Z0-9.,\ \'~/_-]*)
+	die "$2: characters outside supported range (a-z A-Z 0-9 '.,~/_-)";
 esac
 
 IFS=" '"
