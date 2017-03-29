@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Wed 01 Mar 2017 19:25:24 EET too
-# Last modified: Tue 21 Mar 2017 23:15:36 +0200 too
+# Last modified: Wed 29 Mar 2017 22:03:46 +0300 too
 
 # Some documentation at the end. License: 2-Clause (Simplified) BSD
 
@@ -192,14 +192,14 @@ system 'cp', $file, "$gitrepos_keydir/$ofil";
 exit 1 if $?;
 
 my %md5s;
-print " md5...       file (leading content before 'ssh-' (if any) ignored)\n";
+print " md5...       file (leading content before keytype (if any) ignored)\n";
 foreach (<$gitrepos_keydir/*.pub>) {
 	my $ifile = $_;
 	open I, '<', $ifile or die "Cannot open '$file'\n";
 	my $line = <I>;
-	unless ($line =~ /^ssh-/) {
-		die "'$ifile' does not contain 'ssh-*' part\n"
-			unless $line =~ s/^.*? ssh-/ssh-/;
+	unless ($line =~ /^(?:ssh|ecdsa)-/) {
+		die "'$ifile' does not contain '(ssh|ecdsa)-*' (keytype) part\n"
+			unless $line =~ s/^.*? (ssh|ecdsa)-/$1-/;
 	}
 	my $md5 = md5_hex($line);
 	printf " %8.8s...  %s\n", $md5, $ifile;
