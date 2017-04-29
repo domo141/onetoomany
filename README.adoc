@@ -30,14 +30,6 @@ middle ground
 -------------
 
 
-==== link:ipv6llchat.pl[ipv6llchat.pl]
-
-Send short messages to the people near you on their computers connected
-to the same local area network. These computers does not need to have
-any other than (required) ipv6 link local address configured (i.e.
-communication is possible even when getting ip address fails for some reason).
-
-
 ==== link:nowsync.pl[nowsync.pl]
 
 Synchronize local directory tree to one or more remote directories and keeps
@@ -53,6 +45,14 @@ which copies local current directory (tree) to 'remotedir' at 'remotehost'.
 
 Manage versions of a file in a +{filename},sfv+ file. The file format for
 +,sfv+ file is 'ar(5)' and the original file is never modified by this tool.
+
+
+==== link:ipv6llchat.pl[ipv6llchat.pl] (prototype)
+
+Send short messages to the people near you on their computers connected
+to the same local area network. These computers does not need to have
+any other than (required) ipv6 link local address configured (i.e.
+communication is possible even when getting ip address fails for some reason).
 
 
 developer tools
