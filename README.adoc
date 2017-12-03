@@ -41,6 +41,15 @@ Simplest usage command line is +nowsync.pl . remotehost:remotedir+
 which copies local current directory (tree) to 'remotedir' at 'remotehost'.
 
 
+==== link:dhcphaxd.pl[dhcphaxd.pl]
+
+Offer fixed IP address to any DHCP client making a request. Very useful for
+e.g. to bootstrap initial device connections or doing development through
+"point-to-point" ethernet cable between 2 computers.
+
+Uses tcpdump(8) to bypass firewall for reading DHCP traffic.
+
+
 ==== link:sfv[sfv]
 
 Manage versions of a file in a +{filename},sfv+ file. The file format for
