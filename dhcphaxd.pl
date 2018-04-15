@@ -3,7 +3,7 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Sun 03 Dec 2017 13:20:27 +0200 too
+# Last modified: Sun 15 Apr 2018 13:34:01 +0300 too
 
 use 5.8.1;
 use strict;
@@ -22,16 +22,23 @@ use Net::DHCP::Constants;
 
 $ENV{PATH} = '/sbin:/usr/sbin:/bin:/usr/bin';
 
-my $srvport;
-if (@ARGV > 0 && $ARGV[0] =~ /^\d+$/) { $srvport = $ARGV[0] + 0; shift; }
-else { $srvport = 67; }
+my ($srvport, $peeraddr) = (67, '255.255.255.255');
+while (@ARGV > 0) {
+    $srvport = $ARGV[0] + 0, shift, next if $ARGV[0] =~ /^\d+$/;
+    $peeraddr = $ARGV[0], shift, next if $ARGV[0] =~ /^\d+\.\d+\.\d+\.\d+/;
+    last;
+}
+#print "$srvport $peeraddr -- @ARGV\n"; exit 0;
 
-die "\nUsage: $0 [srv port] <interface> <offeredip>
+die "\nUsage: $0 [srv port] [peer addr] <interface> <offeredip>
 
   This program replies 'offeredip' to any DHCP request arriving.
   Route via 'interface', DNS from /etc/resolv.conf (or 9.9.9.9).
   This is usable in \"point-to-point\" ethernet connection between
-  2 machines e.g. for development purposes.\n\n" unless @ARGV == 2;
+  2 machines e.g. for development purposes.
+
+  Default [srv port] is 67 and default [peer addr] 255.255.255.255.\n\n"
+  unless @ARGV == 2;
 
 my $lease_time = 86400 * 5; # 5 days.
 
@@ -206,8 +213,7 @@ sub send_message()
     my $S = IO::Socket::INET->new(LocalPort => $srvport,
 				  LocalAddr => $localip,
 				  PeerPort => 68,
-				  #PeerAddr => '10.0.0.20',
-				  PeerAddr => '255.255.255.255',
+				  PeerAddr => $peeraddr,
 				  Proto    => 'udp',
 				  Broadcast => 1)
     or die "Socket creation error: $@\n";
@@ -218,7 +224,7 @@ sub send_message()
 				    Flags => 0,
 				    Ciaddr => '0.0.0.0',
 				    Yiaddr => $offeredip,
-				    Siaddr => '0.0.0.0',
+				    Siaddr => $localip,
 				    Giaddr => '0.0.0.0',
 				    Chaddr => $chaddr,
 				    DHO_DHCP_MESSAGE_TYPE() => $mt);
