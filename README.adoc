@@ -82,6 +82,16 @@ and give the resulting file:// url to web browser for further inspection.
 ~Note to self: check out ssdiff~
 
 
+==== link:lossybindiff.py[lossybindiff.py]
+
+Print side-by-side (lossy) hex-ascii dump of 2 files, 2 "lines" (32 bytes)
+of context. If in-context difference is large, shows (only) 4 "lines"
+(64 bytes) of differing data from beginning and end of context.
+
+This is early release; more testing, and program options to be added;
+Neverthelss seems to work at least a bit...
+
+
 server setups
 -------------
 
