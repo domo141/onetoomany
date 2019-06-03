@@ -3,7 +3,9 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Sun 15 Apr 2018 13:34:01 +0300 too
+# Last modified: Mon 03 Jun 2019 22:00:00 +0300 too
+
+# SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
 use 5.8.1;
 use strict;

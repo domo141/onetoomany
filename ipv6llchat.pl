@@ -8,7 +8,9 @@
 #	    All rights reserved
 #
 # Created: Sun 16 Oct 2016 19:22:25 EEST too
-# Last modified: Sun 23 Oct 2016 20:38:13 +0300 too
+# Last modified: Mon 03 Jun 2019 22:00:00 +0300 too
+
+# SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
 # This is "MVP" implementation of (multicast) chat using ipv6 link local
 # interface. Currently sending short udp packet is supported, but no
@@ -59,7 +61,7 @@ use Socket qw/inet_pton pack_ipv6_mreq pack_sockaddr_in6 unpack_sockaddr_in6
 # but the changed low-level stuff was left for being more detailed example
 #use IO::Socket::IP;
 
-$ENV{'PATH'} = '/sbin:/usr/sbin:/bin:/usr/bin';
+$ENV{PATH} = '/sbin:/usr/sbin:/bin:/usr/bin';
 
 #sub dbgm(@) { syswrite(STDOUT, "@_\n"); }
 

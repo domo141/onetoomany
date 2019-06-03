@@ -7,7 +7,9 @@
 #	    All rights reserved
 #
 # Created: Sat 01 Jun 2019 13:19:50 EEST too
-# Last modified: Sun 02 Jun 2019 23:36:07 +0300 too
+# Last modified: Mon 03 Jun 2019 22:00:00 +0300 too
+
+# SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
 # wip code, going to field-tests... that said, pretty good already!
 # wat is missing, is separate terminal and temporary terminal resize
