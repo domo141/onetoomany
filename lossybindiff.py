@@ -7,48 +7,69 @@
 #	    All rights reserved
 #
 # Created: Sat 01 Jun 2019 13:19:50 EEST too
-# Last modified: Mon 03 Jun 2019 22:00:00 +0300 too
+# Last modified: Sun 09 Jun 2019 23:36:47 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
-# wip code, going to field-tests... that said, pretty good already!
-# wat is missing, is separate terminal and temporary terminal resize
-# options, some usage info and so on...
+from sys import version_info, argv, stdout, stderr
+from os import (isatty, dup2, pipe, close, write,
+                get_terminal_size, environb, closerange)
+from shutil import which
+from subprocess import Popen
 
-import sys
+assert version_info >= (3, 3)
 
-c_red = '\033[38;5;1m'
-c_res = '\033[m'
+class C:
+    red = '\033[38;5;1m'
+    res = '\033[m'
+    pass
+
 
 def mko(b):
     bl = [ '%02X' % byte for byte in b ]  # byte.hex() requires python 3.5
     al = [ chr(byte) if byte > 31 and byte < 127 else '.' for byte in b ]
     lb = len(b)
     if lb < 16:
-        bl.extend( ( '  ' for _ in range(16 - lb)) )
+        bl.extend( ( '--' for _ in range(16 - lb)) )
         al.extend( ( ' ' for _ in range(16 - lb)) )
         pass
     bl.insert(8, '')
     al.insert(8, '')
     return ' '.join(bl), ''.join(al)
 
+
 def mko2(b1, b2):
     bl1 = [ ]; al1 = [ ]
     bl2 = [ ]; al2 = [ ]
     c = 0
     for i1, i2 in zip(b1, b2):
-        pre, post = ('', '') if i1 == i2 else (c_red, c_res)
+        pre, post = ('', '') if i1 == i2 else (C.red, C.res)
         bl1.append('%s%02X%s' % (pre, i1, post))
         bl2.append('%s%02X%s' % (pre, i2, post))
         al1.append('%s%s%s' % (pre, chr(i1) if i1>31 and i1<127 else '.', post))
         al2.append('%s%s%s' % (pre, chr(i2) if i2>31 and i2<127 else '.', post))
         c += 1
         pass
-    if c < 16:
-        bl1.extend( ( '  ' for _ in range(16 - c)) )
-        bl2.extend( ( '  ' for _ in range(16 - c)) )
-        al1.extend( ( ' ' for _ in range(16 - c)) )
-        al2.extend( ( ' ' for _ in range(16 - c)) )
+    for c in range(c, 16):
+        if len(b1) > c:
+            i = b1[c]
+            s = '%s%02X%s' % (C.red, i, C.res)
+            a = '%s%s%s' % (C.red, chr(i) if i > 31 and i < 127 else '.', C.res)
+        else:
+            s = C.red + '--' + C.res if len(b2) > c else '--'
+            a = ' '
+            pass
+        bl1.append(s); al1.append(a)
+
+        if len(b2) > c:
+            i = b2[c]
+            s = '%s%02X%s' % (C.red, i, C.res)
+            a = '%s%s%s' % (C.red, chr(i) if i > 31 and i < 127 else '.', C.res)
+        else:
+            s = C.red + '--' + C.res if len(b1) > c else '--'
+            a = ' '
+            pass
+        bl2.append(s); al2.append(a)
         pass
     bl1.insert(8, '')
     bl2.insert(8, '')
@@ -89,11 +110,64 @@ outputdiff.called = False
 
 
 def main():
-    if len(sys.argv) != 3:
-        print('\nUsage: %s file1 file2' % sys.argv[0], file=sys.stderr)
-        raise SystemExit("Note: requires 145-character wide terminal\n")
-    fn1 = sys.argv[1]; fp1 = open(fn1, 'rb')
-    fn2 = sys.argv[2]; fp2 = open(fn2, 'rb')
+    if (len(argv) > 1 and argv[1] in ('.', '..', '/', '//')):
+        mode = argv[1]
+        argv.pop(1)
+    else:
+        mode = ''
+        pass
+
+    if len(argv) != 3:
+        print('\nUsage: %s [mode] file1 file2' % argv[0], file=stderr)
+        raise SystemExit("\nmode options:"
+                         "\n  '.' -- make terminal 145 colums wide temporarily"
+                         "\n '..' -- show differences in urxvt or xterm"
+                         "\n  '/' -- do not run through less, show colors"
+                         "\n '//' -- do not run through pager, no colors\n")
+    closerange(3, 9);
+    fn1 = argv[1]; fp1 = open(fn1, 'rb')
+    fn2 = argv[2]; fp2 = open(fn2, 'rb')
+
+    ts = None
+    if mode in ('/', '//'):
+        popenargs = None
+        if mode == '//':
+            C.red, C.res = '', ''
+            pass
+        pass
+    elif mode == '..':
+        cmd = which('urxvt')
+        if cmd is None:
+            cmd = which('xterm')
+            if cmd is None:
+                raise SystemExit("No urxvt(1) nor xterm(1) found in PATH")
+            pass
+        title = '%s  !  %s' % ( fn1.split('/')[-1], fn2.split('/')[-1] )
+        popenargs = (cmd, '-g', '145x24', '-fg', '#bbbbbb', '-bg', 'black',
+                     '-title', title, '-e',  '/bin/sh', '-c', 'exec less <&8')
+        infd = 8;
+        pass
+    else:
+        if not isatty(1):
+            popenargs = None
+            C.red, C.res = '', ''
+        else:
+            popenargs = ('less',)
+            infd = 0;
+            ts = get_terminal_size(1)
+            if ts.columns >= 145:
+                ts = None
+            else:
+                if mode == '':
+                    raise SystemExit('145+ column terminal required --' +
+                                     ' current columns: %d' % ts.columns)
+                else:
+                    dup2(1, 7)
+                    write(7, b'\033[8;%d;%dt' % (ts.lines, 145))
+                    pass
+                pass
+            pass
+        pass
 
     eof = False
     lead1 = None
@@ -103,6 +177,22 @@ def main():
     diffrr = [ ]
     dropped = 0
     same = 0
+
+    if popenargs is not None:
+        environb[b'LESS'] = b'mdeQMiR'
+        # luo pipe subprocessille, duppaa 1:seen
+        def pxfn():
+            dup2(pxfn.rfd, infd)
+            closerange(3, 8)
+            pass
+        pxfn.rfd, pxfn.wfd = pipe()
+
+        popen = Popen(popenargs, preexec_fn = pxfn)
+
+        dup2(pxfn.wfd, 1)
+        close(pxfn.rfd)
+        close(pxfn.wfd)
+        pass
 
     while not eof:
         pos += 16
@@ -191,6 +281,18 @@ def main():
             if dl > 6: diffrr.pop(0); dropped += 16
             pass
         outputdiff(dpos, dropped, lead1, lead2, diffr4, diffrr)
+        pass
+
+    stdout.flush()
+    #stdout.close()
+    close(1)
+
+    if popenargs is not None:
+        popen.wait()
+        pass
+    if ts is not None:
+        write(7, b'\033[8;%d;%dt' % (ts.lines, ts.columns))
+        pass
     pass
 
 
