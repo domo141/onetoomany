@@ -13,6 +13,14 @@ for users
 ---------
 
 
+==== link:zz.pl[zz]
+
+Full-terminal interactive chdir utility; navigate through directories
+using arrow keys and filtering text. Simple four-liner is to be added
+to shell rc files for this to be effective (listed in the beginning of
+the file, just after BSD-2-Clause SPDX license idenfifier line).
+
+
 ==== link:sshlessfs[sshlessfs]
 
 Mount filesystem from remote system like sshfs but data connection for
