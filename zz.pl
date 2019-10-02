@@ -14,7 +14,7 @@
 # Author: Tomi Ollila -- too ät iki piste fi
 #
 # Created: Sun 08 Sep 2019 17:40:28 EEST too
-# Last modified: Wed 18 Sep 2019 23:15:08 +0300 too
+# Last modified: Mon 30 Sep 2019 00:08:39 +0300 too
 
 # lacks some features but is good enough.
 
@@ -89,31 +89,25 @@ $SIG{WINCH} = sub {
     my @newsize = GetTerminalSize *STDERR, *STDERR; # older referenced $_[1]...
     return if $newsize[0] == $cols and $newsize[1] == $lines;
     set_tsvars @newsize;
-    refresh;
+    refresh
 };
 
 # home is 1,1 (not 0,0 like w/ tput cup) (and now args reversed: col,row)
 sub xcup($$) { printf "\033[%d;%dH", $_[1], $_[0] }
 
-my @dirs;
+my (@dirs_a, @dirs_b, @dirs_af, @dirs_bf);
+my $mlen = 0;
 sub dirread()
 {
+    my @dirs;
     opendir D, '.' or die $!;
     @dirs = sort grep { -d $_ && $_ ne '.' && $_ ne '..' } readdir D;
     closedir D;
-    @dirs;
-}
-dirread;
-
-my (@dirs_a, @dirs_b);
-my $mlen = 0;
-sub dirsplit($)
-{
     @dirs_a = (); @dirs_b = ();
     $mlen = 0;
-    my $n = int((@{$_[0]} + 1) / 2);
+    my $n = int((@dirs + 1) / 2);
     my $c = 1;
-    foreach (@{$_[0]}) {
+    foreach (@dirs) {
 	my $nlen = length;
 	my $dir = $_;
 	if ($nlen >= $mlen) {
@@ -125,8 +119,9 @@ sub dirsplit($)
 	}
 	if ($c++ > $n) { push @dirs_b, $dir } else { push @dirs_a, $dir }
     }
+    @dirs_af = @dirs_a; @dirs_bf = @dirs_b;
 }
-dirsplit \@dirs;
+dirread;
 
 my ($pos, $col, $curcol);
 
@@ -144,10 +139,10 @@ sub refresh()
     xcup 1, $cdline; print ' ', $cdtxt, "\033[0K"; # erase right
     $pos = 0;
 
-    my $al = @dirs_a;
+    my $al = @dirs_af;
     my $row = ($al < $la)? 2 + $la - $al: 2;
     xcup 1, $row; print "\033[1J"; # erase above
-    foreach (@dirs_a) {
+    foreach (@dirs_af) {
 	$al--, next if $al > $la;
 	dirline $row++, $_;
     }
@@ -156,7 +151,7 @@ sub refresh()
     my $bl = 0;
     $row = $cdline + 1;
     xcup 1, $row++; print "\033[2K"; # erase line (after cdline)
-    foreach (@dirs_b) {
+    foreach (@dirs_bf) {
 	last if $bl++ >= $lb;
 	dirline $row++, $_;
     }
@@ -166,44 +161,42 @@ sub refresh()
 }
 refresh;
 
-my $sel;
+my($sel, @fl1, @fl2);
 
 sub move($) {
     my $newpos = $pos + $_[0];
     if ($newpos < 0) {
 	return if -$newpos > $la; # no scrolling (yet) so...
-	my $al = @dirs_a;
+	my $al = @dirs_af;
 	return if -$newpos > $al;
-	dirline $cdline + $pos    - 1, $dirs_a[$al + $pos] if $pos != 0;
+	dirline $cdline + $pos    - 1, $dirs_af[$al + $pos] if $pos != 0;
 	print "\033[7m"; # inverse
-	$sel = $dirs_a[$al + $newpos];
+	$sel = $dirs_af[$al + $newpos];
 	dirline $cdline + $newpos - 1, $sel;
 	print "\033[0m"; # normal
     }
     elsif ($newpos > 0) {
 	return if $newpos > $lb; # ditto (note to self: scrolling regions)
-	my $bl = @dirs_b;
+	my $bl = @dirs_bf;
 	return if $newpos > $bl;
-	dirline $cdline + $pos    + 1, $dirs_b[$pos-1] if $pos != 0;
+	dirline $cdline + $pos    + 1, $dirs_bf[$pos-1] if $pos != 0;
 	print "\033[7m"; # inverse
-	$sel = $dirs_b[$newpos-1];
+	$sel = $dirs_bf[$newpos-1];
 	dirline $cdline + $newpos + 1, $sel;
 	print "\033[0m"; # normal
     } else { # newpos == 0
 	if ($pos < 0) {
-	    my $al = @dirs_a;
-	    dirline $cdline + $pos - 1, $dirs_a[$al + $pos];
+	    my $al = @dirs_af;
+	    dirline $cdline + $pos - 1, $dirs_af[$al + $pos];
 	} else {
-	    my $bl = @dirs_b;
-	    dirline $cdline + $pos + 1, $dirs_b[$pos-1];
+	    my $bl = @dirs_bf;
+	    dirline $cdline + $pos + 1, $dirs_bf[$pos-1];
 	}
-	xcup $curcol, $cdline;
+	xcup $curcol + @fl1, $cdline;
     }
     OUT->flush();
     $pos = $newpos;
 }
-
-my(@fl1, @fl2);
 
 sub newdir($) {
     unless (chdir $_[0]) {
@@ -216,7 +209,7 @@ sub newdir($) {
     }
     $cwd = $_[0];
     @fl1 = (); @fl2 = ();
-    set_cdtxt; dirread; dirsplit \@dirs; refresh
+    set_cdtxt; dirread; refresh
 }
 
 my %cdirs;
@@ -244,13 +237,14 @@ sub cdir($) {
 
 sub dirfresh() {
     unless (@fl1) {
-	dirsplit \@dirs; refresh;
-	return 1;
+	@dirs_af = @dirs_a; @dirs_bf = @dirs_b; refresh;
+	return 1
     }
     my $f = join '', @fl1;
-    my @tmp = grep { index($_, $f) >= 0 } @dirs;
-    return 0 unless @tmp;
-    dirsplit \@tmp; refresh;
+    my @_af = grep { index($_, $f) >= 0 } @dirs_a;
+    my @_bf = grep { index($_, $f) >= 0 } @dirs_b;
+    return 0 unless @_af or @_bf;
+    @dirs_af = @_af; @dirs_bf = @_bf; refresh;
     return 1
 }
 
