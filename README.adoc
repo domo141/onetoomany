@@ -100,6 +100,12 @@ This is early release; more testing, and program options to be added;
 Neverthelss seems to work at least a bit...
 
 
+==== link:c-oneliner.sh[c-oneliner.sh]
+
+"One line" of C code given from command line compiled in +main()+ and
+then executed (by default). Useful for quickly testing simple things.
+
+
 server setups
 -------------
 
