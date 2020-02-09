@@ -3,7 +3,7 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Mon 03 Jun 2019 22:00:00 +0300 too
+# Last modified: Sun 09 Feb 2020 21:04:17 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -32,15 +32,21 @@ while (@ARGV > 0) {
 }
 #print "$srvport $peeraddr -- @ARGV\n"; exit 0;
 
-die "\nUsage: $0 [srv port] [peer addr] <interface> <offeredip>
+die "\nUsage: $0 [srv port] [peer addr] <interface> <offeredip> <r|n>
 
   This program replies 'offeredip' to any DHCP request arriving.
-  Route via 'interface', DNS from /etc/resolv.conf (or 9.9.9.9).
+  If 'r' is given as last argument, route is set via 'interface' and
+  DNS from /etc/resolv.conf (or 9.9.9.9) -- with 'n' these are not set.
   This is usable in \"point-to-point\" ethernet connection between
   2 machines e.g. for development purposes.
 
   Default [srv port] is 67 and default [peer addr] 255.255.255.255.\n\n"
-  unless @ARGV == 2;
+  unless @ARGV == 3;
+
+my $send_route;
+if    ($ARGV[2] eq 'r') { $send_route = 1 }
+elsif ($ARGV[2] eq 'n') { $send_route = 0 }
+else { die "'$ARGV[2]' nor 'r' nor 'n'\n" }
 
 my $lease_time = 86400 * 5; # 5 days.
 
@@ -233,10 +239,12 @@ sub send_message()
 
     $pac->addOptionValue(DHO_SUBNET_MASK(), $localmask);
     #$pac->addOptionValue(DHO_ROUTERS(), "192.168.2.1");
-    $pac->addOptionValue(DHO_ROUTERS(), $localip);
+    $pac->addOptionValue(DHO_ROUTERS(), $localip)
+      if $send_route;
     $pac->addOptionValue(DHO_DHCP_LEASE_TIME(), $lease_time);
     $pac->addOptionValue(DHO_DHCP_SERVER_IDENTIFIER, $localip);
-    $pac->addOptionValue(DHO_DOMAIN_NAME_SERVERS(), "@nameservers");
+    $pac->addOptionValue(DHO_DOMAIN_NAME_SERVERS(), "@nameservers")
+      if $send_route;
 
     select undef, undef, undef, 0.5; # interface to become up...
     print ts, "Sending $mn. IP: $offeredip (lease_time: $lease_time seconds)\n";
