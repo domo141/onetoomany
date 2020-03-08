@@ -1,0 +1,152 @@
+#!/bin/sh
+#
+# $ poru -- podman run wrapper $
+#
+# Author: Tomi Ollila -- too ät iki piste fi
+#
+#	Copyright (c) 2019 Tomi Ollila
+#	    All rights reserved
+#
+# Created: Sat 06 Jul 2019 14:03:52 EEST too
+# Last modified: Mon 09 Mar 2020 00:42:52 +0200 too
+
+# SPDX-License-Identifier: BSD 2-Clause "Simplified" License
+
+case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
+case ${ZSH_VERSION-} in *.*) emulate ksh; esac
+
+set -euf  # hint: sh -x thisfile [args] to trace execution
+
+die () { printf '%s\n' "$@"; exit 1; } >&2
+
+x () { printf '+ %s\n' "$*" >&2; "$@"; }
+x_exec () { printf '+ %s\n' "$*" >&2; exec "$@"; die "exec '$*' failed"; }
+
+case ${1-}
+in '')
+	exec >&2; echo
+	echo "Usage: ${0##*/} [podman run options] or helper command"
+	echo '  helper commands:  i ia  l la  ps psa  e  mvtag  - and rmi'
+	echo '  also, the following podman(1) commands are passed through:'
+	echo '       tag  rm  history  inspect  pull  run  start  exec  stop'
+	echo; exit 1
+
+;; i | l | ia | la | ps | psa | e | mvtag | rmi )
+	cmd=$1
+
+;; tag | rm | history | inspect | pull | run | start | exec | stop )
+	x_exec podman "$@"
+
+;; -* | ??*:*?? )
+	# run
+	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
+	x_exec podman run --pull=never --rm -it --privileged \
+		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$@"
+	exit
+
+# no command, no options or no name:tag -- i'mages for user convenience...
+;; [1-9] | [1-9][0-9] | [1-9][0-9][0-9] )
+	echo "Newest $1 images:"
+	cmd=i; set -- i $1
+;; *)	echo "Images matching '$1':"
+	cmd=i; set -- i $1
+esac
+
+pi_f=
+_images () {
+	f=$1; shift
+	pi_f='podman images '$pi_f'--format'
+	case ${1-} in			'')	exec $pi_f "$f"
+	;; [1-9]|[1-9][0-9]|[1-9][0-9][0-9])	$pi_f "$f" | head -n $1
+	;;				*)	$pi_f "$f" | grep "$*"
+	esac
+	echo
+}
+
+cmd_i ()
+{
+	echo ' IMAGE ID        CREATED         SIZE    REPOSITORY:TAG'
+	_images '{{.ID}} {{printf "%12.12s %8s" .Created .Size}} {{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' "$@"
+}
+
+cmd_l ()
+{
+	echo ' IMAGE ID       REPOSITORY:TAG'
+	_images '{{.ID}} {{.Repository}}:{{.Tag}}' "$@"
+}
+
+cmd_ia () { pi_f='-a '; cmd_i "$@"; }
+cmd_la () { pi_f='-a '; cmd_l "$@"; }
+
+_ps ()
+{
+	a=$1 #; shift
+	echo 'CONTAINER ID   IMAGE                        STATUS                NAME(S)'
+	#exec podman ps --format='{{.ID}}  {{$e:=""}}{{range $e = split .Image "/"}}{{end}}{{printf "%-18.18s %-20.20s" $e .Status}}  {{.Names}}'
+	podman ps $a --format='{{.ID}}  {{.Image}}  {{.Status}}  {{.Names}}' \
+		| awk -F '  ' '{ sub(".*/", "~", $2)
+		printf "%s  %-28.28s %-20.20s  %s\n", $1, $2, $3, $4 }'
+	echo
+}
+
+cmd_ps ()
+{
+	_ps '' # "$@"
+}
+
+cmd_psa ()
+{
+	_ps -a # "$@"
+}
+
+cmd_e ()
+{
+	if test $# = 2 && test "$2" = . -o "$2" = ..
+	then
+		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
+	fi
+	x_exec podman exec -it -w "$PWD" "$@"
+}
+
+cmd_rmi ()
+{
+	test $# != 0 || die "Usage: ${0##*/} $cmd image [image...]"
+	for arg; do
+		case $arg in *-rmi-[1-9]) continue; esac
+		for i in 1 2 3 4 5 6 7 8 9
+		do	id=`exec podman images -q "$arg-rmi-$i"`
+			test -z "$id" || { echo $id $arg-rmi-$i; continue; }
+			x podman tag "$arg" "$arg-rmi-$i"
+			i=
+			break
+		done
+		test -z "$i" || die "'$arg': all backups in use..."
+	done
+	x_exec podman rmi "$@"
+}
+
+cmd_mvtag ()
+{
+	test $# = 2 || die "Usage: ${0##*/} $cmd from-image to-image"
+	case `exec podman images -q "$2"` in '') ;; *)
+		podman images "$2"
+		echo "image '$2' exists"
+		exit 1
+	esac
+	x podman tag "$1" "$2"
+	id1=`exec podman images -q "$1"`
+	id2=`exec podman images -q "$2"`
+	x test "${id1:-1}" = "${id2:-2}"
+	x_exec podman rmi "$1"
+}
+
+shift
+cmd_$cmd "$@"
+
+
+# Local variables:
+# mode: shell-script
+# sh-basic-offset: 8
+# tab-width: 8
+# End:
+# vi: set sw=8 ts=8

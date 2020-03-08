@@ -37,6 +37,14 @@ mounted and sftp-server(8) to the host which provides the filesystem.
 middle ground
 -------------
 
+==== link:poru[poru]
+
+Convenient podman run wrapper. First of all, prefixes `--pull=never --rm -it`
+to the podman run command line options. Mounts current directory
+(and/or `$HOME`) into the container and sets current dir as workdir. poru(1)
+provides quite a few helper commands when container image (or more run
+options) are not given as first arguments.
+
 
 ==== link:nowsync.pl[nowsync.pl]
 
