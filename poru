@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Mon 09 Mar 2020 00:42:52 +0200 too
+# Last modified: Tue 10 Mar 2020 21:55:44 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -39,6 +39,10 @@ in '')
 
 ;; -* | ??*:*?? )
 	# run
+	if test $# = 2 && test "$2" = . -o "$2" = ..
+	then
+		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
+	fi
 	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
 	x_exec podman run --pull=never --rm -it --privileged \
 		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$@"
