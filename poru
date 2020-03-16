@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Tue 10 Mar 2020 21:55:44 +0200 too
+# Last modified: Mon 16 Mar 2020 22:43:07 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -69,8 +69,10 @@ _images () {
 
 cmd_i ()
 {
+	# note: before podman 1.8.1 .Created worked instead of .CreatedSince
+	# also: some older systems cannot handle $e = ... in the template
 	echo ' IMAGE ID        CREATED         SIZE    REPOSITORY:TAG'
-	_images '{{.ID}} {{printf "%12.12s %8s" .Created .Size}} {{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' "$@"
+	_images '{{.ID}} {{printf "%12.12s %8s" .CreatedSince .Size}} {{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' "$@"
 }
 
 cmd_l ()
