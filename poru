@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Mon 16 Mar 2020 22:43:07 +0200 too
+# Last modified: Sat 18 Apr 2020 14:42:36 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -37,7 +37,7 @@ in '')
 ;; tag | rm | history | inspect | pull | run | start | exec | stop )
 	x_exec podman "$@"
 
-;; -* | ??*:*?? )
+;; -* | ??*:*? )
 	# run
 	if test $# = 2 && test "$2" = . -o "$2" = ..
 	then
@@ -48,7 +48,7 @@ in '')
 		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$@"
 	exit
 
-# no command, no options or no name:tag -- i'mages for user convenience...
+# no command, no options or no name:tag -- images for user convenience...
 ;; [1-9] | [1-9][0-9] | [1-9][0-9][0-9] )
 	echo "Newest $1 images:"
 	cmd=i; set -- i $1
