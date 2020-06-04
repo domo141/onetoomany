@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 16 May 2015 11:40:42 EEST too
-# Last modified: Sun 14 Jun 2015 14:43:52 +0300 too
+# Last modified: Thu 04 Jun 2020 22:08:15 +0300 too
 
 =encoding utf8
 
@@ -127,6 +127,10 @@ only single spaces, but to separate this from other args 2 spaces are to
 be used. E.g.
 
  --ssh-command 'ssh  -p  2222  -oProxyCommand=ssh pxy.example.org -W %h:%p'
+
+Another useful "proxy" pattern is:
+
+ --ssh-command 'ssh  -p  2222  -T  user@pxy.example.org  ssh'
 
 The remote synchronization server is a perl program whose code is sent over
 the communication link after the link has been established. As with ssh the
