@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Sat 18 Apr 2020 14:42:36 +0300 too
+# Last modified: Sat 27 Jun 2020 14:55:58 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -26,12 +26,12 @@ case ${1-}
 in '')
 	exec >&2; echo
 	echo "Usage: ${0##*/} [podman run options] or helper command"
-	echo '  helper commands:  i ia  l la  ps psa  e  mvtag  - and rmi'
+	echo '  helper commands:  r  i ia  l la  ps psa  e  mvtag  - and rmi'
 	echo '  also, the following podman(1) commands are passed through:'
 	echo '       tag  rm  history  inspect  pull  run  start  exec  stop'
 	echo; exit 1
 
-;; i | l | ia | la | ps | psa | e | mvtag | rmi )
+;; r | i | l | ia | la | ps | psa | e | mvtag | rmi )
 	cmd=$1
 
 ;; tag | rm | history | inspect | pull | run | start | exec | stop )
@@ -65,6 +65,27 @@ _images () {
 	;;				*)	$pi_f "$f" | grep "$*"
 	esac
 	echo
+}
+
+cmd_r ()
+{
+	test $# != 0 || die "Usage: $0 r image-re [podman run args]"
+	case $1 in *'|'*) die "'|' in '$1'"; esac
+	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading --filter=reference="$1" | sed q`
+	image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
+	test "$image" || die "No image match for '$1'"
+
+	# copy-region-as-kill--yanked run above, just fastest to add thiss
+	if test $# = 2 && test "$2" = . -o "$2" = ..
+	then
+		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
+	fi
+	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
+	shift
+	x_exec podman run --pull=never --rm -it --privileged \
+		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$image" "$@"
+	exit
+
 }
 
 cmd_i ()
