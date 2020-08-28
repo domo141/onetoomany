@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Sat 27 Jun 2020 14:55:58 +0300 too
+# Last modified: Sat 29 Aug 2020 00:58:42 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -58,11 +58,13 @@ esac
 
 pi_f=
 _images () {
-	f=$1; shift
+	f=$1; s=$2 shift 2
 	pi_f='podman images '$pi_f'--format'
-	case ${1-} in			'')	exec $pi_f "$f"
-	;; [1-9]|[1-9][0-9]|[1-9][0-9][0-9])	$pi_f "$f" | head -n $1
-	;;				*)	$pi_f "$f" | grep "$*"
+	#case ${1-} in	'')   exec $pi_f "$f"
+	case ${1-} in	'')   $pi_f "$f" | sed -n ${s:+-e "$s"} -e p
+	;; [1-9]|[1-9][0-9])  $pi_f "$f" | sed ${s:+-e "$s"} -e $1q
+	;; [1-9][0-9][0-9])   $pi_f "$f" | sed ${s:+-e "$s"} -e $1q
+	;;		*)    $pi_f "$f" | sed -n ${s:+-e "$s"} -e "\\| .*$1|p"
 	esac
 	echo
 }
@@ -72,7 +74,8 @@ cmd_r ()
 	test $# != 0 || die "Usage: $0 r image-re [podman run args]"
 	case $1 in *'|'*) die "'|' in '$1'"; esac
 	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading --filter=reference="$1" | sed q`
-	image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
+	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
+	image=`podman images --format='{{.Repository}}//{{.Tag}}' --noheading | sed -n -e 's|.*/\(.*\)//|\1:|' -e "\\|$1|{p;q;}"`
 	test "$image" || die "No image match for '$1'"
 
 	# copy-region-as-kill--yanked run above, just fastest to add thiss
@@ -92,14 +95,15 @@ cmd_i ()
 {
 	# note: before podman 1.8.1 .Created worked instead of .CreatedSince
 	# also: some older systems cannot handle $e = ... in the template
-	echo ' IMAGE ID        CREATED         SIZE    REPOSITORY:TAG'
-	_images '{{.ID}} {{printf "%12.12s %8s" .CreatedSince .Size}} {{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' "$@"
+	echo ' IMAGE ID        CREATED      SIZE    REPOSITORY:TAG'
+	#_images '{{.ID}} {{printf "%12.12s %8s" .CreatedSince .Size}} {{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' "$@"
+	_images '{{.ID}}  {{printf "%12.12s %8s" .CreatedSince .Size}} //{{.Repository}}//{{.Tag}}' 's|//.*/\(.*\)//| \1:|' "$@"
 }
 
 cmd_l ()
 {
 	echo ' IMAGE ID       REPOSITORY:TAG'
-	_images '{{.ID}} {{.Repository}}:{{.Tag}}' "$@"
+	_images '{{.ID}}  {{.Repository}}:{{.Tag}}' '' "$@"
 }
 
 cmd_ia () { pi_f='-a '; cmd_i "$@"; }
