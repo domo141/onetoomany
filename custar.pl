@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Fri 11 Sep 2020 20:31:43 +0300 too
+# Last modified: Fri 11 Sep 2020 20:48:51 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -139,9 +139,10 @@ my @filelist;
 
 sub add_filentry($$) {
     my $ftn = $_[1];
+    # note: drops ../ /../ /.. somewhat sensibly, weird things not prohibited..
+    1 while ($ftn =~ s:(^|/)[.][.]/:$1:);
     xforms $ftn if @xforms;
-    # no exclude/include/xform (yet), so all unless size)
-    die "name len of '$ftn' is too long\n" if length($ftn) > 99;
+     die "name len of '$ftn' is too long\n" if length($ftn) > 99;
     my @st = lstat $_[1];
     if (-l _) {
 	my $sl = readlink $_[1]; # fixme: check error (and test it)
