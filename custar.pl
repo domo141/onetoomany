@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Thu 10 Sep 2020 01:05:59 +0300 too
+# Last modified: Fri 11 Sep 2020 20:31:43 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -228,8 +228,7 @@ if (defined $tcwd) {
 my $dotcount = 0;
 my %links;
 foreach (@filelist) {
-    # note: C locale, only tr/A-Z/a-z/ is done
-    my @list = sort { lc $a->[7] cmp lc $b->[7] } @{$_};
+    my @list = sort { $a->[7] cmp $b->[7] } @{$_};
     #my $dotcount = 0;
     foreach (@list) {
 	#print Dumper($_);
