@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sat 12 Sep 2020 00:20:39 +0300 too
+# Last modified: Sat 12 Sep 2020 19:56:03 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -21,7 +21,7 @@ use warnings;
 
 # arg scanning here
 
-die "Usage: $0 [wip add ext diff opt] tarchive1 tarchive2\n"
+die "Usage: $0 [wip add options] tarchive1 tarchive2\n"
   unless @ARGV == 2;
 
 die "'$ARGV[0]': no such file\n" unless -f $ARGV[0];
@@ -49,13 +49,16 @@ my ($fh0, $fh1);
 opn $fh0, $zc0, $ARGV[0];
 opn $fh1, $zc1, $ARGV[1];
 
-# later, if prefix+name concatenated, prefix will go away
 sub unpack_ustar_hdr($$) {
     my @l = unpack('A100 A8 A8 A8 A12 A12 A8 A1 A100 a8 A32 A32 A8 A8 A155',
 		   $_[0]);
+    if ($l[14]) {
+	$l[14] =~ s:/*$:/:;
+	$l[0] = $l[14] . $l[0];
+    }
     die "$_[1]: '$l[9]': not 'ustar{\\0}00'\n" unless $l[9] eq "ustar\00000";
     return ($l[0], $l[1]+0, $l[2]+0, $l[3]+0, oct($l[4]), oct($l[5]),
-	    $l[7], $l[8], $l[10], $l[11], $l[12]+0, $l[13]+0, $l[14], 1);
+	    $l[7], $l[8], $l[10], $l[11], $l[12]+0, $l[13]+0, 1);
 }
 
 my (@h0, @h1);
@@ -82,7 +85,6 @@ sub hdrdiffer() {
     chkdiffer  9, "group name";
     chkdiffer 10, "device major";
     chkdiffer 11, "device minor";
-    chkdiffer 12, "prefix" or $cmp = -1;
     return -1 if $h0[6] != '0';
     return $cmp;
 }
@@ -100,7 +102,7 @@ sub read_hdr($$$) {
 	    last;
 	}
 	die "fixme" unless $l == 0;
-	return ("\377\377", 0, 0, 0, 0, 0, '9', '', '', '', 0, 0, '', 0)
+	return ("\377\377", 0, 0, 0, 0, 0, '9', '', '', '', 0, 0, 0)
     }
     my @h = unpack_ustar_hdr $buf, $_[2];
     my $n = $h[0];
@@ -147,7 +149,7 @@ sub compare() {
 T: while (1) {
     @h0 = read_hdr $fh0, $pname0, $ARGV[0];
     @h1 = read_hdr $fh1, $pname1, $ARGV[1];
-    last unless $h0[13] and $h1[13];
+    last unless $h0[12] and $h1[12];
 
     while (1) {
 	my $n = $h0[0] cmp $h1[0];
