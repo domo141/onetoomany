@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Fri 11 Sep 2020 20:48:51 +0300 too
+# Last modified: Sun 13 Sep 2020 12:30:36 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -137,16 +137,20 @@ die "No files/dirs\n" unless @ARGV;
 
 my @filelist;
 
+sub _tarlisted_nampfx($$);
+
 sub add_filentry($$) {
     my $ftn = $_[1];
     # note: drops ../ /../ /.. somewhat sensibly, weird things not prohibited..
     1 while ($ftn =~ s:(^|/)[.][.]/:$1:);
     xforms $ftn if @xforms;
-     die "name len of '$ftn' is too long\n" if length($ftn) > 99;
+    if (length($ftn) > 100) {
+	my $pfx; _tarlisted_nampfx($ftn, $pfx); # check fit-ness
+    }
     my @st = lstat $_[1];
     if (-l _) {
 	my $sl = readlink $_[1]; # fixme: check error (and test it)
-	die "symlink len of '$sl' is too long\n" if length($sl) > 99;
+	die "symlink len of '$sl' is too long\n" if length($sl) > 100;
     }
     push @{$_[0]},
       # name    dev     ino     mode    nlink   rdev    size
@@ -318,23 +322,37 @@ sub _tarlisted_pipetocmd(@)
     close PW;
 }
 
+sub _tarlisted_nampfx($$) {
+    local $_ = $_[0];
+    my $n = '';
+    while (s:/([^/]+)$::) {
+	$n = $n? "$n/$1": $1;
+	last if length $n > 100;
+	next if length $_ > 155;
+	$_[1] = $_;
+	return $n
+    }
+    die "'$_[0]': does not fit in ustar header file name fields\n"
+}
 
 # IEEE Std 1003.1-1988 (“POSIX.1”) ustar format
 # name perm uid gid size mtime type lname uname gname
 sub _tarlisted_mkhdr($$$$$$$$$$)
 {
-    if (length($_[7]) > 99) {
+    if (length($_[7]) > 100) {
 	die "Link name '$_[7]' too long\n";
     }
     my $name = $_[0];
     my $prefix;
-    if (length($name) > 99) {
-	die "Name splitting not implemented ('$name' too long)\n";
+    if (length($name) > 100) {
+	$name = _tarlisted_nampfx $name, $prefix
     }
     else {
-	$name = pack('a100', $name);
-	$prefix = pack('a155', '');
+	$prefix = ''
     }
+    $name = pack('a100', $name);
+    $prefix = pack('a155', $prefix);
+
     my $mode = sprintf("%07o\0", $_[1]);
     my $uid = sprintf("%07o\0", $_[2]);
     my $gid = sprintf("%07o\0", $_[3]);
