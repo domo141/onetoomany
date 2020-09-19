@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Sat 19 Sep 2020 16:50:58 +0300 too
+# Last modified: Sat 19 Sep 2020 17:20:18 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -103,7 +103,10 @@ while (@ARGV) {
 	push @xforms, $1;
 	next
     }
+    die "'$_': unknown option\n"
 }
+
+die "No files/dirs\n" unless @ARGV;
 
 my $swd;
 if (defined $tcwd) {
@@ -130,9 +133,9 @@ if (@xforms) {
     #
     foreach (@xforms) {
 	# early checks...
-	die "'$_' does not start with 's'\n" unless /^s\W/;
-	tr/;//d;
+	die "'$_' does not start with 's'[non-word]\n" unless /^s\W/;
 	my $p = substr($_, 1, 1);
+	tr/;//d;
 	my $s = substr($_, -1, 1);
 	die "'$_' not s$p...$p...$p nor s$s...$s...$s\n" unless $p eq $s;
 	$eval .= "\n \$_[0] =~ $_;";
@@ -140,8 +143,6 @@ if (@xforms) {
     $eval .= "\n}; 1";
     eval $eval or die "Unsupported/broken --xform/--transform content\n";
 }
-
-die "No files/dirs\n" unless @ARGV;
 
 my @filelist;
 

@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sat 12 Sep 2020 19:56:03 +0300 too
+# Last modified: Sat 19 Sep 2020 17:26:10 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -19,13 +19,51 @@ use 5.8.1;
 use strict;
 use warnings;
 
-# arg scanning here
+my @res;
+
+while (@ARGV) {
+    shift, last if $ARGV[0] eq '--';
+    last unless $ARGV[0] =~ /^-/;
+    $_ = shift;
+    if ($_ eq '-s') {
+	die "No value for '$_'\n" unless @ARGV;
+	push @res, shift;
+	next
+    }
+    if ($_ =~ /^-s(.*)/) {
+	push @res, $1;
+	next
+    }
+    die "'$_': unknown option"
+}
 
 die "Usage: $0 [wip add options] tarchive1 tarchive2\n"
   unless @ARGV == 2;
 
 die "'$ARGV[0]': no such file\n" unless -f $ARGV[0];
 die "'$ARGV[1]': no such file\n" unless -f $ARGV[1];
+
+sub xforms($); # fn name from custar.pl...
+if (@res) {
+    my $eval = 'sub xforms($) {';
+    #
+    # Current solution is to "eval" replace script run time. Due to input
+    # restrictions full perl regexp substitution interface is not available
+    # (';'s dropped, separator must be non-word character).
+    # Improvements welcome.
+    #
+    foreach (@res) {
+	# early checks...
+	die "'$_' does not start with non-word character\n" unless /^\W/;
+	my $p = substr($_, 0, 1);
+	tr/;//d;
+	my $s = substr($_, -1, 1);
+	die "'$_' not $p...$p...$p nor $s...$s...$s\n" unless $p eq $s;
+	$eval .= "\n \$_[0] =~ s$_;";
+    }
+    $eval .= "\n}; 1";
+    eval $eval or die "Unsupported/broken '-s ...' content\n";
+}
 
 my %zc = ( '.tar' => '', '.tar.bzip2' => 'bzip2',
 	   '.tar.gz' => 'gzip', '.tgz' => 'gzip',
@@ -56,6 +94,7 @@ sub unpack_ustar_hdr($$) {
 	$l[14] =~ s:/*$:/:;
 	$l[0] = $l[14] . $l[0];
     }
+    xforms $l[0] if @res;
     die "$_[1]: '$l[9]': not 'ustar{\\0}00'\n" unless $l[9] eq "ustar\00000";
     return ($l[0], $l[1]+0, $l[2]+0, $l[3]+0, oct($l[4]), oct($l[5]),
 	    $l[7], $l[8], $l[10], $l[11], $l[12]+0, $l[13]+0, 1);
