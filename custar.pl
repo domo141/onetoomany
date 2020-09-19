@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Sat 19 Sep 2020 15:19:41 +0300 too
+# Last modified: Sat 19 Sep 2020 16:50:58 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -217,7 +217,7 @@ if (defined $swd) {
 
 # declare tarlisted.pm functions #
 
-sub _tarlisted_mkhdr($$$$$$$$$$);
+sub _tarlisted_mkhdr($$$$$$$$$$$$);
 sub _tarlisted_writehdr($);
 sub _tarlisted_xsyswrite($);
 sub _tarlisted_addpad();
@@ -249,22 +249,34 @@ foreach (@filelist) {
 	#print $_->[0], " ", $->[7], " ", $prm, "\n";
 	print(((++$dotcount) % 72)? '.': "\n");
 	lstat $_->[0];
-	if (! -l _ and -d _) {
+	if (-l _) {
+	    my $lname = readlink $_->[0];
+	    $prm = oct(777);
 	    _tarlisted_writehdr _tarlisted_mkhdr
-	      $_->[7], $prm, 0,0, 0, $gmtime, '5', '', 'root','root';
+	      $_->[7], $prm, 0,0, 0, $gmtime, '2', $lname,'root','root', 0,0;
+	    next
+	}
+	if (-d _) {
+	    _tarlisted_writehdr _tarlisted_mkhdr
+	      $_->[7], $prm, 0,0, 0, $gmtime, '5', '', 'root','root', 0,0;
+	    next
+	}
+	if (-c _) {
+	    my ($dma, $mi) = ($_->[5] >> 8, $_->[5] & 0xff);
+	    _tarlisted_writehdr _tarlisted_mkhdr
+	      $_->[7], $prm, 0,0, 0, $gmtime, '3', '', 'root','root', $dma,$mi;
+	    next
+	}
+	if (-b _) {
+	    my ($dma, $mi) = ($_->[5] >> 8, $_->[5] & 0xff);
+	    _tarlisted_writehdr _tarlisted_mkhdr
+	      $_->[7], $prm, 0,0, 0, $gmtime, '4', '', 'root','root', $dma,$mi;
 	    next
 	}
 	next unless -f _ or -l _;
-	# fixme: device nodes, fifos not yet handled (refactor this foreach...)
-	my ($name, $size) = ($_->[0], $_->[6]);
-	my ($type, $lname) = ('0', '');
-	if (-l _) {
-	    $type = '2';
-	    $lname = readlink $_->[0];
-	    $size = 0;
-	    $prm = oct(777);
-	}
-	elsif ($_->[4] > 1) {
+	# fixme: fifos not yet handled (or is it a feature)
+	my ($size, $type, $lname) = ($_->[6], '0', '');
+	if ($_->[4] > 1) {
 	    my $devino = "$->[1].$->[2]";
 	    $lname = $links{$devino};
 	    if (defined $lname) {
@@ -276,12 +288,13 @@ foreach (@filelist) {
 		$links{$devino} = $_->[7];
 	    }
 	}
+
 	_tarlisted_writehdr _tarlisted_mkhdr
-	  $_->[7], $prm, 0,0, $size, $gmtime, $type, $lname, 'root','root';
+	  $_->[7], $prm, 0,0, $size, $gmtime, $type, $lname,'root','root', 0,0;
 
 	next if $lname;
 
-	open my $in, '<', $name or die "opening '$name': $!\n";
+	open my $in, '<', $_->[0] or die "opening '$_->[0]': $!\n";
 	my $buf; my $tlen = 0;
 	while ( (my $len = sysread($in, $buf, 65536)) > 0) {
 	    _tarlisted_xsyswrite $buf;
@@ -344,8 +357,8 @@ sub _tarlisted_nampfx($$) {
 }
 
 # IEEE Std 1003.1-1988 (“POSIX.1”) ustar format
-# name perm uid gid size mtime type lname uname gname
-sub _tarlisted_mkhdr($$$$$$$$$$)
+# name perm uid gid size mtime type lname uname gname devmajor devminor
+sub _tarlisted_mkhdr($$$$$$$$$$$$)
 {
     if (length($_[7]) > 100) {
 	die "Link name '$_[7]' too long\n";
@@ -373,8 +386,8 @@ sub _tarlisted_mkhdr($$$$$$$$$$)
     my $version = '00';
     my $uname = pack('a32', $_[8]);
     my $gname = pack('a32', $_[9]);
-    my $devmajor = "0000000\0";
-    my $devminor = "0000000\0";
+    my $devmajor = sprintf("%07o\0", $_[10]);
+    my $devminor = sprintf("%07o\0", $_[11]);
     my $pad = pack('a12', '');
 
     my $hdr = join '', $name, $mode, $uid, $gid, $size, $mtime,
