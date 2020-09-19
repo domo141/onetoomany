@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Sun 13 Sep 2020 12:30:36 +0300 too
+# Last modified: Sat 19 Sep 2020 15:19:41 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -22,7 +22,12 @@ use POSIX qw/mktime getcwd/;
 
 $ENV{TZ} = 'UTC';
 
-die "Usage: $0 tarname mtime [options] [--] dirs/files\n" unless @ARGV > 2;
+die "\nUsage: $0 tarname mtime [options] [--] dirs/files\n\n",
+  "  mtime formats (in UTC):\n",
+  "    yyyy-mm-dd  yyyy-mm-ddThh:mm:ss  yyyy-mm-dd+hh:mm:ss\n",
+  "    yyyy-mm-dd+hh:mm  yyyy-mm-dd+hh  hh:mm  d  \@secs\n",
+  "  hh:mm -- hour and min today,  d -- number of days ago 00:00\n\n"
+  unless @ARGV > 2;
 
 my $of = shift;
 
@@ -40,22 +45,25 @@ die "Unknown format in '$of': not in (fn" . join(', fn', sort keys %zc) . ")\n"
 
 my $gmtime = shift;
 
-if ($gmtime eq '-') {
+if ($gmtime =~ /^@(\d+)$/) {
+    $gmtime = $1;
+} elsif ($gmtime =~ /^(\d\d?):(\d\d)$/) {
     $gmtime = time;
+    $gmtime = $gmtime - $gmtime % 86400 + $1 * 3600 + $2 * 60;
 } elsif ($gmtime =~ /^\d$/) {
     $gmtime = time - 86400 * $gmtime;
     $gmtime = $gmtime - $gmtime % 86400;
 } elsif ($gmtime =~
-	 /(20\d\d)-([01]\d)-([0-3]\d)/) {
+	 /(20\d\d)-([01]\d)-([0-3]\d)$/) {
     $gmtime = mktime(0, 0, 0, $3, $2 - 1, $1 - 1900);
 } elsif ($gmtime =~
-	 /(20\d\d)-([01]\d)-([0-3]\d)\+([012]\d)/) {
+	 /(20\d\d)-([01]\d)-([0-3]\d)\+([012]\d)$/) {
     $gmtime = mktime(0, 0, $4, $3, $2 - 1, $1 - 1900);
 } elsif ($gmtime =~
-	 /(20\d\d)-([01]\d)-([0-3]\d)\+([012]\d):([0-5]\d)/) {
+	 /(20\d\d)-([01]\d)-([0-3]\d)\+([012]\d):([0-5]\d)$/) {
     $gmtime = mktime(0, $5, $4, $3, $2 - 1, $1 - 1900);
 } elsif ($gmtime =~
-	 /(20\d\d)-([01]\d)-([0-3]\d)[+T]([012]\d):([0-5]\d):(\[0-5]\d)/) {
+	 /(20\d\d)-([01]\d)-([0-3]\d)[+T]([012]\d):([0-5]\d):([0-5]\d)$/) {
     $gmtime = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900);
 }
 else { die "'$gmtime': unknown time format\n"; }
