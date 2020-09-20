@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sun 20 Sep 2020 19:46:55 +0300 too
+# Last modified: Sun 20 Sep 2020 19:56:02 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -115,9 +115,9 @@ my (@h0, @h1);
 sub chkdiffer($$) {
     if ($h0[$_[0]] ne $h1[$_[0]]) {
 	print "$h0[0]: $_[1] differ ($h0[$_[0]] != $h1[$_[0]])\n";
-	return 1
+	return 0
     }
-    return 0
+    return 1
 }
 
 # return for filename / file content ....
@@ -185,6 +185,7 @@ sub compare() {
 	read $fh1, $buf0, 1024 * 1024;
 	read $fh2, $buf1, 1024 * 1024;
 	$diff = $buf0 cmp $buf1 unless $diff;
+	$left -= 1024 * 1024;
     }
     if ($left > 0) {
 	# ditto
