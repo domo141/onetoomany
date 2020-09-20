@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sun 20 Sep 2020 15:19:29 +0300 too
+# Last modified: Sun 20 Sep 2020 19:46:55 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -20,31 +20,37 @@ use strict;
 use warnings;
 
 my @res;
-my ($seek0, $seek1) = (0, 0);
+my ($seek1, $seek2) = (0, 0);
 
 sub needarg() { die "No value for '$_'\n" unless @ARGV }
 
+my ($tarf1, $tarf2);
+
 while (@ARGV) {
     shift, last if $ARGV[0] eq '--';
-    last unless $ARGV[0] =~ /^-/;
+    unless ($ARGV[0] =~ /^-/) {
+	$tarf1 = $ARGV[0], shift, next unless defined $tarf1;
+	$tarf2 = $ARGV[0], shift, next unless defined $tarf2;
+	die "$0: '$ARGV[0]': too many arguments\n"
+    }
     $_ = shift;
 
     needarg, push(@res, shift), next if $_ eq '-s';
-    needarg, $seek0 = (shift) + 0, next if $_ eq '--seek1';
-    needarg, $seek1 = (shift) + 0, next if $_ eq '--seek2';
+    needarg, $seek1 = (shift) + 0, next if $_ eq '--seek1';
+    needarg, $seek2 = (shift) + 0, next if $_ eq '--seek2';
 
     push(@res, $1), next if $_ =~ /^-s(.*)/;
-    $seek0 = $1 + 0, next if $_ =~ /^--seek1=(.*)/;
-    $seek1 = $1 + 0, next if $_ =~ /^--seek2=(.*)/;
+    $seek1 = $1 + 0, next if $_ =~ /^--seek1=(.*)/;
+    $seek2 = $1 + 0, next if $_ =~ /^--seek2=(.*)/;
 
     die "'$_': unknown option"
 }
 
-die "Usage: $0 [wip add options] tarchive1 tarchive2\n"
-  unless @ARGV == 2;
+die "Usage: $0 [options] tarchive1 tarchive2\n"
+  unless defined $tarf2 and @ARGV == (defined $tarf1)? 1: 2;
 
-die "'$ARGV[0]': no such file\n" unless -f $ARGV[0];
-die "'$ARGV[1]': no such file\n" unless -f $ARGV[1];
+die "'$tarf1': no such file\n" unless -f $tarf1;
+die "'$tarf2': no such file\n" unless -f $tarf2;
 
 sub xforms($); # fn name from custar.pl...
 if (@res) {
@@ -78,18 +84,18 @@ sub fmz($$) {
     die "Unknown format in '$_[1]': not in (fn" . join(', fn', sort keys %zc) .
   ")\n" unless defined $1 and defined ($_[0] = $zc{$1});
 }
-my ($zc0, $zc1);
-fmz $zc0, $ARGV[0];
-fmz $zc1, $ARGV[1];
+my ($zc1, $zc2);
+fmz $zc1, $tarf1;
+fmz $zc2, $tarf2;
 
 sub opn($$$$) {
     if ($_[1]) { open $_[0], '-|', $_[1], '-dc', $_[3] or die $! }
     else       { open $_[0], '<', $_[3] or die $! }
     seek $_[0], $_[2], 0 if $_[2] > 0;
 }
-my ($fh0, $fh1);
-opn $fh0, $zc0, $seek0, $ARGV[0];
-opn $fh1, $zc1, $seek1, $ARGV[1];
+my ($fh1, $fh2);
+opn $fh1, $zc1, $seek1, $tarf1;
+opn $fh2, $zc2, $seek2, $tarf2;
 
 sub unpack_ustar_hdr($$) {
     my @l = unpack('A100 A8 A8 A8 A12 A12 A8 A1 A100 a8 A32 A32 A8 A8 A155',
@@ -176,22 +182,22 @@ sub compare() {
     my $diff = 0;
     while ($left > 1024 * 1024) {
 	# xxx check read length (readfully?, check other perl code)
-	read $fh0, $buf0, 1024 * 1024;
-	read $fh1, $buf1, 1024 * 1024;
+	read $fh1, $buf0, 1024 * 1024;
+	read $fh2, $buf1, 1024 * 1024;
 	$diff = $buf0 cmp $buf1 unless $diff;
     }
     if ($left > 0) {
 	# ditto
-	read $fh0, $buf0, $left;
-	read $fh1, $buf1, $left;
+	read $fh1, $buf0, $left;
+	read $fh2, $buf1, $left;
 	$diff = $buf0 cmp $buf1 unless $diff;
     }
     return $diff
 }
 
 T: while (1) {
-    @h0 = read_hdr $fh0, $pname0, $ARGV[0];
-    @h1 = read_hdr $fh1, $pname1, $ARGV[1];
+    @h0 = read_hdr $fh1, $pname0, $tarf1;
+    @h1 = read_hdr $fh2, $pname1, $tarf2;
     last unless $h0[12] and $h1[12];
 
     while (1) {
@@ -199,8 +205,8 @@ T: while (1) {
 	if ($n == 0) {
 	    my $w = hdrdiffer;
 	    if ($w <= 0) { # 0 and -1: diffing not implemented yet
-		consume $fh0, $h0[4];
-		consume $fh1, $h1[4];
+		consume $fh1, $h0[4];
+		consume $fh2, $h1[4];
 	    }
 	    else {
 		print "$h0[0]: file content differ\n" if compare;
@@ -210,18 +216,18 @@ T: while (1) {
 	if ($n < 0) {
 	    # later, collect to list to be printed at the end
 	    print "$h0[0]: only in $ARGV[0]\n"; # not in argv[1]
-	    consume $fh0, $h0[4];
-	    @h0 = read_hdr $fh0, $pname0, $ARGV[0];
+	    consume $fh1, $h0[4];
+	    @h0 = read_hdr $fh1, $pname0, $ARGV[0];
 	}
 	else {
 	    # later, collect to list to be printed at the end
 	    print "$h1[0]: only in $ARGV[1]\n"; # not in argv[0]
-	    consume $fh1, $h1[4];
-	    @h1 = read_hdr $fh1, $pname1, $ARGV[1];
+	    consume $fh2, $h1[4];
+	    @h1 = read_hdr $fh2, $pname1, $ARGV[1];
 	}
     }
     last
 }
 
-close $fh0; # or warn $!;
 close $fh1; # or warn $!;
+close $fh2; # or warn $!;
