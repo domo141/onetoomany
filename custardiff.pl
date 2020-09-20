@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sat 19 Sep 2020 17:26:10 +0300 too
+# Last modified: Sun 20 Sep 2020 15:19:29 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -20,20 +20,23 @@ use strict;
 use warnings;
 
 my @res;
+my ($seek0, $seek1) = (0, 0);
+
+sub needarg() { die "No value for '$_'\n" unless @ARGV }
 
 while (@ARGV) {
     shift, last if $ARGV[0] eq '--';
     last unless $ARGV[0] =~ /^-/;
     $_ = shift;
-    if ($_ eq '-s') {
-	die "No value for '$_'\n" unless @ARGV;
-	push @res, shift;
-	next
-    }
-    if ($_ =~ /^-s(.*)/) {
-	push @res, $1;
-	next
-    }
+
+    needarg, push(@res, shift), next if $_ eq '-s';
+    needarg, $seek0 = (shift) + 0, next if $_ eq '--seek1';
+    needarg, $seek1 = (shift) + 0, next if $_ eq '--seek2';
+
+    push(@res, $1), next if $_ =~ /^-s(.*)/;
+    $seek0 = $1 + 0, next if $_ =~ /^--seek1=(.*)/;
+    $seek1 = $1 + 0, next if $_ =~ /^--seek2=(.*)/;
+
     die "'$_': unknown option"
 }
 
@@ -79,13 +82,14 @@ my ($zc0, $zc1);
 fmz $zc0, $ARGV[0];
 fmz $zc1, $ARGV[1];
 
-sub opn($$$) {
-    if ($_[1]) { open $_[0], '-|', $_[1], '-dc', $_[2] or die $! }
-    else       { open $_[0], '<', $_[2] or die $! }
+sub opn($$$$) {
+    if ($_[1]) { open $_[0], '-|', $_[1], '-dc', $_[3] or die $! }
+    else       { open $_[0], '<', $_[3] or die $! }
+    seek $_[0], $_[2], 0 if $_[2] > 0;
 }
 my ($fh0, $fh1);
-opn $fh0, $zc0, $ARGV[0];
-opn $fh1, $zc1, $ARGV[1];
+opn $fh0, $zc0, $seek0, $ARGV[0];
+opn $fh1, $zc1, $seek1, $ARGV[1];
 
 sub unpack_ustar_hdr($$) {
     my @l = unpack('A100 A8 A8 A8 A12 A12 A8 A1 A100 a8 A32 A32 A8 A8 A155',
