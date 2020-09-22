@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Sat 19 Sep 2020 17:20:18 +0300 too
+# Last modified: Tue 22 Sep 2020 07:17:39 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -91,7 +91,7 @@ while (@ARGV) {
 	next
     }
     if ($_ =~ /^--exclude=(.*)/) {
-	push @xforms, $1;
+	push @excludes, $1;
 	next
     }
     if ($_ eq '--xform' || $_ eq '--transform') {
