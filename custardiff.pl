@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sun 20 Sep 2020 19:56:02 +0300 too
+# Last modified: Sat 26 Sep 2020 18:45:57 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -20,7 +20,34 @@ use strict;
 use warnings;
 
 my @res;
-my ($seek1, $seek2) = (0, 0);
+my ($seek1, $cf1, $seek2, $cf2) = (0, undef, 0, undef);
+
+my %zo = ( 'tar', => '', 'bzip2' => 'bzip2',
+	   'gz' => 'gzip', 'gzip' => 'gzip',
+	   'xz' => 'xz', '.txz' => 'xz',
+	   'lz' => 'lzip', '.tlz' => 'lzip' );
+
+sub xseekarg($$)
+{
+    my $a = $_[1];
+    my $n;
+    if ($_[0]) {
+	# internal error if $_[0] not 1 nor 2 here...
+	$n = $_[0];
+    } else {
+	$a =~ s/^([12]),// or die "'-x' arg $a does not start with 1, or 2,\n";
+	$n = $1;
+    }
+    my ($s, $f) = (0, '');
+    foreach (split /,/, $a) {
+	$s = $1, next if /^(\d+)$/;
+	next unless $_;
+	$f = $zo{$_};
+	die "'$_': not in (", join(', ', sort keys %zo),"\n" unless defined $f;
+    }
+
+    (($n == 1)? ($seek1, $cf1): ($seek2, $cf2)) = ($s, $f);
+}
 
 sub needarg() { die "No value for '$_'\n" unless @ARGV }
 
@@ -36,14 +63,15 @@ while (@ARGV) {
     $_ = shift;
 
     needarg, push(@res, shift), next if $_ eq '-s';
-    needarg, $seek1 = (shift) + 0, next if $_ eq '--seek1';
-    needarg, $seek2 = (shift) + 0, next if $_ eq '--seek2';
+    needarg, xseekarg(1, shift), next if $_ eq '-x1';
+    needarg, xseekarg(2, shift), next if $_ eq '-x2';
+    needarg, xseekarg('', shift), next if $_ eq '-x';
 
     push(@res, $1), next if $_ =~ /^-s(.*)/;
-    $seek1 = $1 + 0, next if $_ =~ /^--seek1=(.*)/;
-    $seek2 = $1 + 0, next if $_ =~ /^--seek2=(.*)/;
+    xseekarg(1, $1), next if $_ =~ /^-x1[,=](.*)/;
+    xseekarg(2, $1), next if $_ =~ /^-x2[,=](.*)/;
 
-    die "'$_': unknown option"
+    die "'$_': unknown option\n"
 }
 
 die "Usage: $0 [options] tarchive1 tarchive2\n"
@@ -79,14 +107,15 @@ my %zc = ( '.tar' => '', '.tar.bzip2' => 'bzip2',
 	   '.tar.xz' => 'xz', '.txz' => 'xz',
 	   '.tar.lz' => 'lzip', '.tlz' => 'lzip' );
 
-sub fmz($$) {
+sub fmz($$$) {
+    $_[0] = $_[2], return if defined $_[2];
     $_[1] =~ /\S((?:[.]tar)?[.]?[.]\w+)$/;
     die "Unknown format in '$_[1]': not in (fn" . join(', fn', sort keys %zc) .
   ")\n" unless defined $1 and defined ($_[0] = $zc{$1});
 }
 my ($zc1, $zc2);
-fmz $zc1, $tarf1;
-fmz $zc2, $tarf2;
+fmz $zc1, $tarf1, $cf1;
+fmz $zc2, $tarf2, $cf2;
 
 sub opn($$$$) {
     if ($_[1]) { open $_[0], '-|', $_[1], '-dc', $_[3] or die $! }
