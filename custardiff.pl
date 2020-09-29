@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sat 26 Sep 2020 18:45:57 +0300 too
+# Last modified: Tue 29 Sep 2020 23:35:22 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -21,6 +21,7 @@ use warnings;
 
 my @res;
 my ($seek1, $cf1, $seek2, $cf2) = (0, undef, 0, undef);
+my @diffcmds;
 
 my %zo = ( 'tar', => '', 'bzip2' => 'bzip2',
 	   'gz' => 'gzip', 'gzip' => 'gzip',
@@ -63,11 +64,13 @@ while (@ARGV) {
     $_ = shift;
 
     needarg, push(@res, shift), next if $_ eq '-s';
+    needarg, @diffcmds = split(':', shift, 2), next if $_ eq '-d';
     needarg, xseekarg(1, shift), next if $_ eq '-x1';
     needarg, xseekarg(2, shift), next if $_ eq '-x2';
     needarg, xseekarg('', shift), next if $_ eq '-x';
 
     push(@res, $1), next if $_ =~ /^-s(.*)/;
+    needarg, @diffcmds = split(':', $1, 2), next if $_ =~ /^-d(.*)/;
     xseekarg(1, $1), next if $_ =~ /^-x1[,=](.*)/;
     xseekarg(2, $1), next if $_ =~ /^-x2[,=](.*)/;
 
@@ -189,39 +192,113 @@ sub read_hdr($$$) {
     return @h;
 }
 
-# btw: check/test if sysread is faster...
-sub consume($$) {
+# a tmpdir creation fn, just for fun (less use's). good enough fail safe.
+my $tmpd;
+sub mktmpd ()
+{
+    my $t = time;
+    my $salt = substr((sprintf "%2x", $$), -2);
+    for (1..100) {
+	my $dn = crypt $t, $salt; $dn =~ tr|/.||d;
+	next unless length $dn >= 6;
+	$dn = substr $dn, -6; $dn = "/tmp/ctd-$dn";
+	if (mkdir $dn, 0700) {
+	    $tmpd = $dn;
+	    eval "END { unlink glob('$tmpd/*'); rmdir '$tmpd' }";
+	    return
+	}
+	$t -= 11111;
+    }
+    die "Could not create temporary directory\n";
+}
+
+$diffcmds[1] = '' if @diffcmds == 1;
+my $binary = 0;
+
+sub rundiff($$)
+{
+    my @diffcmd;
+    if (! $binary) {
+	# fixme: search suitable tools if not def'd
+	$diffcmds[0] = 'diff -u' unless $diffcmds[0];
+	@diffcmd = split ' ', $diffcmds[0];
+	@diffcmd = qw/diff -u/ unless @diffcmd;
+    }
+    else {
+	# fixme: search suitable tools if not def'd
+	$diffcmds[1] = 'cmp -l' unless $diffcmds[1];
+	@diffcmd = split ' ', $diffcmds[1];
+	@diffcmd = qw/cmp -l/ unless @diffcmd;
+    }
+    #system qw/sh -c/, 'echo $# -- $0 -- $@', @diffcmd, $_[0], $_[1];
+    print "Executing @diffcmd $_[0] $_[1]\n";
+    system @diffcmd, $_[0], $_[1];
+    unlink $_[0], $_[1];
+    $binary = 0;
+}
+
+sub diffiles ()
+{
+    my $f = $h0[0]; $f =~ tr|/|,|;
+    mktmpd unless defined $tmpd;
+    return ("$tmpd/1-$f", "$tmpd/2-$f");
+}
+
+sub write_tmpfiles($$@)
+{
+    open O, '>', $_[0] or die $!;  print O $_[1];  close O or die $!;
+    $binary = 1 if -B $_[0];
+    return unless defined $_[2];
+    open O, '>', $_[2] or die $!;  print O $_[3];  close O or die $!;
+    $binary = 1 if -B $_[2];
+}
+
+# btw: check/test if sysread is faster... (what about global $buf ?)
+sub consume($$$) {
     my $left = $_[1]; # could have used alias to list, but...
-    $left = ($left + 511) & ~511;
     my $buf;
-    while ($left > 1024 * 1024) {
+    my $dowr = ($_[2])? 1: 0;
+    while ($left > 1024 * 1024 + 1024) {
 	# xxx check read length (readfully?, check other perl code)
 	read $_[0], $buf, 1024 * 1024;
+	write_tmpfiles($_[2], $buf), $dowr = 0 if $dowr;
 	$left -= 1024 * 1024
     }
     if ($left > 0) {
 	# ditto
 	read $_[0], $buf, $left;
+	write_tmpfiles($_[2], $buf), $dowr = 0 if $dowr;
     }
+    $left = $left & 511;
+    read $_[0], $buf, 512 - $left if $left;
 }
 
 sub compare() {
-    my $left = ($h0[4] + 511) & ~511;
-    my ($buf0, $buf1);
+    my $left = $h0[4];
+    my ($buf1, $buf2);
     my $diff = 0;
-    while ($left > 1024 * 1024) {
+    my ($tf1, $tf2, $dowr, $rd) = @diffcmds ? (diffiles, 1, 1) : ('','', 0, 0);
+    while ($left > 1024 * 1024 + 1024) {
 	# xxx check read length (readfully?, check other perl code)
-	read $fh1, $buf0, 1024 * 1024;
-	read $fh2, $buf1, 1024 * 1024;
-	$diff = $buf0 cmp $buf1 unless $diff;
+	read $fh1, $buf1, 1024 * 1024;
+	read $fh2, $buf2, 1024 * 1024;
+	$diff = $buf1 cmp $buf2 unless $diff;
+	write_tmpfiles($tf1, $buf1, $tf2, $buf2), $dowr = 0 if $dowr and $diff;
 	$left -= 1024 * 1024;
     }
     if ($left > 0) {
 	# ditto
-	read $fh1, $buf0, $left;
-	read $fh2, $buf1, $left;
-	$diff = $buf0 cmp $buf1 unless $diff;
+	read $fh1, $buf1, $left;
+	read $fh2, $buf2, $left;
+	$diff = $buf1 cmp $buf2 unless $diff;
+	write_tmpfiles($tf1, $buf1, $tf2, $buf2), $dowr = 0 if $dowr and $diff;
     }
+    $left = $left & 511;
+    if ($left) {
+	read $fh1, $buf1, 512 - $left;
+	read $fh2, $buf2, 512 - $left;
+    }
+    rundiff $tf1, $tf2 if $diff and $rd;
     return $diff
 }
 
@@ -235,8 +312,10 @@ T: while (1) {
 	if ($n == 0) {
 	    my $w = hdrdiffer;
 	    if ($w <= 0) { # 0 and -1: diffing not implemented yet
-		consume $fh1, $h0[4];
-		consume $fh2, $h1[4];
+		my ($tf1, $tf2) = ($w == 0 && @diffcmds) ? diffiles : ('','');
+		consume $fh1, $h0[4], $tf1;
+		consume $fh2, $h1[4], $tf2;
+		rundiff $tf1, $tf2 if $tf1;
 	    }
 	    else {
 		print "$h0[0]: file content differ\n" if compare;
@@ -246,13 +325,13 @@ T: while (1) {
 	if ($n < 0) {
 	    # later, collect to list to be printed at the end
 	    print "$h0[0]: only in $ARGV[0]\n"; # not in argv[1]
-	    consume $fh1, $h0[4];
+	    consume $fh1, $h0[4], '';
 	    @h0 = read_hdr $fh1, $pname0, $ARGV[0];
 	}
 	else {
 	    # later, collect to list to be printed at the end
 	    print "$h1[0]: only in $ARGV[1]\n"; # not in argv[0]
-	    consume $fh2, $h1[4];
+	    consume $fh2, $h1[4], '';
 	    @h1 = read_hdr $fh2, $pname1, $ARGV[1];
 	}
     }
