@@ -8,12 +8,12 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Tue 29 Sep 2020 23:35:22 +0300 too
+# Last modified: Thu 01 Oct 2020 00:43:51 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
 # hint: LC_ALL=C sh -c './custar.sh archive.tar.gz 2020-02-02 *'
-# for archiving with shell wildcard (w/ custar.pl . gets close)
+# for archiving with shell wildcard (custar.pl . gets close)
 
 use 5.8.1;
 use strict;
@@ -64,21 +64,19 @@ while (@ARGV) {
     $_ = shift;
 
     needarg, push(@res, shift), next if $_ eq '-s';
-    needarg, @diffcmds = split(':', shift, 2), next if $_ eq '-d';
+    needarg, @diffcmds = split(/\s*:\s*/, shift, 2), next if $_ eq '-d';
     needarg, xseekarg(1, shift), next if $_ eq '-x1';
     needarg, xseekarg(2, shift), next if $_ eq '-x2';
     needarg, xseekarg('', shift), next if $_ eq '-x';
 
     push(@res, $1), next if $_ =~ /^-s(.*)/;
-    needarg, @diffcmds = split(':', $1, 2), next if $_ =~ /^-d(.*)/;
+    needarg, @diffcmds = split(/\s*:\s*/, $1, 2), next if $_ =~ /^-d(.*)/;
     xseekarg(1, $1), next if $_ =~ /^-x1[,=](.*)/;
     xseekarg(2, $1), next if $_ =~ /^-x2[,=](.*)/;
 
     die "'$_': unknown option\n"
 }
-
-die "Usage: $0 [options] tarchive1 tarchive2\n"
-  unless defined $tarf2 and @ARGV == (defined $tarf1)? 1: 2;
+die "Usage: $0 [options] tarchive1 tarchive2\n" unless defined $tarf2;
 
 die "'$tarf1': no such file\n" unless -f $tarf1;
 die "'$tarf2': no such file\n" unless -f $tarf2;
@@ -226,9 +224,9 @@ sub rundiff($$)
     }
     else {
 	# fixme: search suitable tools if not def'd
-	$diffcmds[1] = 'cmp -l' unless $diffcmds[1];
+	$diffcmds[1] = 'cmp -b -l' unless $diffcmds[1];
 	@diffcmd = split ' ', $diffcmds[1];
-	@diffcmd = qw/cmp -l/ unless @diffcmd;
+	@diffcmd = qw/cmp -b -l/ unless @diffcmd;
     }
     #system qw/sh -c/, 'echo $# -- $0 -- $@', @diffcmd, $_[0], $_[1];
     print "Executing @diffcmd $_[0] $_[1]\n";
@@ -324,15 +322,15 @@ T: while (1) {
 	}
 	if ($n < 0) {
 	    # later, collect to list to be printed at the end
-	    print "$h0[0]: only in $ARGV[0]\n"; # not in argv[1]
+	    print "$h0[0]: only in $tarf1\n"; # not in $tarf2
 	    consume $fh1, $h0[4], '';
-	    @h0 = read_hdr $fh1, $pname0, $ARGV[0];
+	    @h0 = read_hdr $fh1, $pname0, $tarf1;
 	}
 	else {
 	    # later, collect to list to be printed at the end
-	    print "$h1[0]: only in $ARGV[1]\n"; # not in argv[0]
+	    print "$h1[0]: only in $tarf2\n"; # not in $tarf1
 	    consume $fh2, $h1[4], '';
-	    @h1 = read_hdr $fh2, $pname1, $ARGV[1];
+	    @h1 = read_hdr $fh2, $pname1, $tarf2;
 	}
     }
     last
