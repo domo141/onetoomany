@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Thu 01 Oct 2020 00:43:51 +0300 too
+# Last modified: Fri 02 Oct 2020 17:04:52 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -119,9 +119,26 @@ fmz $zc1, $tarf1, $cf1;
 fmz $zc2, $tarf2, $cf2;
 
 sub opn($$$$) {
-    if ($_[1]) { open $_[0], '-|', $_[1], '-dc', $_[3] or die $! }
-    else       { open $_[0], '<', $_[3] or die $! }
-    seek $_[0], $_[2], 0 if $_[2] > 0;
+    if ($_[1]) {
+	# with decompressor
+	if ($_[2] == 0) {
+	    # no seek
+	    open $_[0], '-|', $_[1], '-dc', $_[3] or die $!;
+	    return
+	}
+	# decompressor and seek
+	# temp stdin replace. simplest!
+	open my $oldin, '<&', \*STDIN or die $!;
+	open STDIN, '<', $_[3] or die $!;
+	seek STDIN, $_[2], 0;
+	open $_[0], '-|', $_[1], '-dc' or die $!;
+	open STDIN, '<&', $oldin or die $!;
+    }
+    else {
+	# plain tar
+	open $_[0], '<', $_[3] or die $!;
+	seek $_[0], $_[2], 0 if $_[2] > 0
+    }
 }
 my ($fh1, $fh2);
 opn $fh1, $zc1, $seek1, $tarf1;
