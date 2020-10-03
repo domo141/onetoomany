@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Wed 30 Sep 2020 22:28:50 +0300 too
+# Last modified: Sat 03 Oct 2020 09:43:21 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -165,6 +165,7 @@ sub add_filentry($$) {
 	my $sl = readlink $_[1]; # fixme: check error (and test it)
 	die "symlink len of '$sl' is too long\n" if length($sl) > 100;
     }
+    $ftn =~ tr[/][\n]; # for sorting (e.g. dir/fil before dir-fil)
     push @{$_[0]},
       # name    dev     ino     mode    nlink   rdev    size
       [ $_[1], $st[0], $st[1], $st[2], $st[3], $st[6], $st[7], $ftn ]
@@ -249,6 +250,7 @@ foreach (@filelist) {
     my @list = sort { $a->[7] cmp $b->[7] } @{$_};
     #my $dotcount = 0;
     foreach (@list) {
+	$_->[7] =~ tr[\n][/]; # /'s restored after sorting (dir/fil vs dir-fil)
 	#print Dumper($_);
 	my $prm = $_->[3] & 0777;
 	#print $_->[0], " ", $->[7], " ", $prm, "\n";

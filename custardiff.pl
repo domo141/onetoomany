@@ -8,14 +8,14 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Fri 02 Oct 2020 17:04:52 +0300 too
+# Last modified: Sat 03 Oct 2020 10:39:21 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
 # hint: LC_ALL=C sh -c './custar.sh archive.tar.gz 2020-02-02 *'
 # for archiving with shell wildcard (custar.pl . gets close)
 
-use 5.8.1;
+use 5.14.1; # for tr/.../.../r (used in one (1) line)
 use strict;
 use warnings;
 
@@ -201,8 +201,11 @@ sub read_hdr($$$) {
 	return ("\377\377", 0, 0, 0, 0, 0, '9', '', '', '', 0, 0, 0)
     }
     my @h = unpack_ustar_hdr $buf, $_[2];
-    my $n = $h[0];
-    die "order!: $_[2]: $_[1] > $n\n" unless $_[1] le $n;
+    my $n = ($h[0] =~ tr[/]/\n/r);
+    unless ($_[1] le $n) {
+	$_[1] =~ tr/\n/\//; $n =~ tr/\n/\//;
+	die "order!: $_[2]: $_[1] > $n\n";
+    }
     $_[1] = $n;
     return @h;
 }
@@ -323,7 +326,7 @@ T: while (1) {
     last unless $h0[12] and $h1[12];
 
     while (1) {
-	my $n = $h0[0] cmp $h1[0];
+	my $n = $pname0 cmp $pname1;
 	if ($n == 0) {
 	    my $w = hdrdiffer;
 	    if ($w <= 0) { # 0 and -1: diffing not implemented yet
