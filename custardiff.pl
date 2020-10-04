@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sun 04 Oct 2020 15:46:04 +0300 too
+# Last modified: Sun 04 Oct 2020 18:54:16 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -53,6 +53,7 @@ sub xseekarg($$)
 sub needarg() { die "No value for '$_'\n" unless @ARGV }
 
 my ($tarf1, $tarf2);
+my $care = 'pugmd'; # perm user group mode device
 
 while (@ARGV) {
     shift, last if $ARGV[0] eq '--';
@@ -68,11 +69,13 @@ while (@ARGV) {
     needarg, xseekarg(1, shift), next if $_ eq '-x1';
     needarg, xseekarg(2, shift), next if $_ eq '-x2';
     needarg, xseekarg('', shift), next if $_ eq '-x';
+    needarg, $care = shift, next if $_ eq '-c';
 
     push(@res, $1), next if $_ =~ /^-s(.*)/;
     needarg, @diffcmds = split(/\s*:\s*/, $1, 2), next if $_ =~ /^-d(.*)/;
     xseekarg(1, $1), next if $_ =~ /^-x1[,=](.*)/;
     xseekarg(2, $1), next if $_ =~ /^-x2[,=](.*)/;
+    $care = $1, next if $_ =~ /^-c(.*)/;
 
     die "'$_': unknown option\n"
 }
@@ -159,9 +162,13 @@ sub unpack_ustar_hdr($$) {
 
 my (@h0, @h1);
 
-sub chkdiffer($$) {
+#my @differ_now; ...
+sub chkdiffer($$;$) {
     if ($h0[$_[0]] ne $h1[$_[0]]) {
-	print "$h0[0]: $_[1] differ ($h0[$_[0]] != $h1[$_[0]])\n";
+	if (defined $_[2]) {
+	    return 1 if ((index $care, $_[2]) < 0);
+	}
+	print " $h0[0] :$_[1] differ ($h0[$_[0]] != $h1[$_[0]])\n";
 	return 0
     }
     return 1
@@ -170,17 +177,17 @@ sub chkdiffer($$) {
 # return for filename / file content ....
 sub hdrdiffer() {
     my $cmp = 1;
-    chkdiffer  1, "file mode (perms)";
-    chkdiffer  2, "user id";
-    chkdiffer  3, "group id";
+    chkdiffer  1, "file mode (perms)", 'p';
+    chkdiffer  2, "user id", 'u';
+    chkdiffer  3, "group id", 'g';
     chkdiffer  4, "file size" or $cmp = 0; # no point compare, but visual diff
-    chkdiffer  5, "mod. time";
+    chkdiffer  5, "mod. time", 'm';
     chkdiffer  6, "file type" or $cmp = -1; # -1: no point ever diff
     chkdiffer  7, "link name" or $cmp = -1;
-    chkdiffer  8, "user name";
-    chkdiffer  9, "group name";
-    chkdiffer 10, "device major";
-    chkdiffer 11, "device minor";
+    chkdiffer  8, "user name", 'u';
+    chkdiffer  9, "group name", 'g';
+    chkdiffer 10, "device major", 'd';
+    chkdiffer 11, "device minor", 'd';
     return -1 if $h0[6] != '0';
     return $cmp;
 }
@@ -242,7 +249,7 @@ if (@diffcmds) {
 	$diffcmds[0] = [ split /\s+/, $diffcmds[0] ];
     }
     else {
-	my @l; @l = qw/xxdiff meld/ if ($ENV{DISPLAY} || '');
+	my @l; @l = qw/xxdiff kompare meld/ if ($ENV{DISPLAY} || '');
 	#push @l, ...
 	$diffcmds[0] = [ 'sh', '-c', 'diff -u "$0" "$1" | less' ];
 	foreach (@l) {
@@ -340,6 +347,10 @@ sub compare() {
     return $diff
 }
 
+my (@only1, @only2);
+
+print "\n =-- File differences --=\n";
+
 T: while (1) {
     @h0 = read_hdr $fh1, $pname0, $tarf1;
     @h1 = read_hdr $fh2, $pname1, $tarf2;
@@ -356,19 +367,17 @@ T: while (1) {
 		rundiff $tf1, $tf2 if $tf1;
 	    }
 	    else {
-		print "$h0[0]: file content differ\n" if compare;
+		print " $h0[0] :file content differ\n" if compare;
 	    }
 	    next T
 	}
 	if ($n < 0) {
-	    # later, collect to list to be printed at the end
-	    print "$h0[0]: only in $tarf1\n"; # not in $tarf2
+	    push @only1, $h0[0];
 	    consume $fh1, $h0[4], '';
 	    @h0 = read_hdr $fh1, $pname0, $tarf1;
 	}
 	else {
-	    # later, collect to list to be printed at the end
-	    print "$h1[0]: only in $tarf2\n"; # not in $tarf1
+	    push @only2, $h1[0];
 	    consume $fh2, $h1[4], '';
 	    @h1 = read_hdr $fh2, $pname1, $tarf2;
 	}
@@ -378,3 +387,10 @@ T: while (1) {
 
 close $fh1; # or warn $!;
 close $fh2; # or warn $!;
+
+print "\n<-- only in $tarf1 <--\n";
+print ' ', $_, "\n" foreach (@only1);
+
+print "\n--> only in $tarf2 -->\n";
+print ' ', $_, "\n" foreach (@only2);
+print "\n";
