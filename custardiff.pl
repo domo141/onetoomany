@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 11 Sep 2020 21:24:10 EEST too
-# Last modified: Sat 03 Oct 2020 10:39:21 +0300 too
+# Last modified: Sun 04 Oct 2020 15:46:04 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -230,27 +230,47 @@ sub mktmpd ()
     die "Could not create temporary directory\n";
 }
 
-$diffcmds[1] = '' if @diffcmds == 1;
+if (@diffcmds) {
+    sub which($) {
+	foreach (split /:/, $ENV{PATH}) {
+	    my $p = "$_/$_[0]";
+	    return $p if -x $p;
+	}
+	return '';
+    }
+    if ($diffcmds[0]) {
+	$diffcmds[0] = [ split /\s+/, $diffcmds[0] ];
+    }
+    else {
+	my @l; @l = qw/xxdiff meld/ if ($ENV{DISPLAY} || '');
+	#push @l, ...
+	$diffcmds[0] = [ 'sh', '-c', 'diff -u "$0" "$1" | less' ];
+	foreach (@l) {
+	    my $p = which $_;
+	    $diffcmds[0] = [ $p ], last if $p;
+	}
+    }
+    if (@diffcmds == 2 and $diffcmds[1]) {
+	$diffcmds[1] = [ split /\s+/, $diffcmds[1] ];
+    }
+    else {
+	$diffcmds[1] = [ 'sh', '-c', 'cmd -b -l "$0" "$1" | less' ];
+	foreach (qw/vbindiff/) {
+	    my $p = which $_;
+	    $diffcmds[1] = [ $p ], last if $p;
+	}
+    }
+}
 my $binary = 0;
+$ENV{LESSSECURE} = '1';
 
 sub rundiff($$)
 {
-    my @diffcmd;
-    if (! $binary) {
-	# fixme: search suitable tools if not def'd
-	$diffcmds[0] = 'diff -u' unless $diffcmds[0];
-	@diffcmd = split ' ', $diffcmds[0];
-	@diffcmd = qw/diff -u/ unless @diffcmd;
-    }
-    else {
-	# fixme: search suitable tools if not def'd
-	$diffcmds[1] = 'cmp -b -l' unless $diffcmds[1];
-	@diffcmd = split ' ', $diffcmds[1];
-	@diffcmd = qw/cmp -b -l/ unless @diffcmd;
-    }
-    #system qw/sh -c/, 'echo $# -- $0 -- $@', @diffcmd, $_[0], $_[1];
-    print "Executing @diffcmd $_[0] $_[1]\n";
-    system @diffcmd, $_[0], $_[1];
+    my $diffcmd = $binary? $diffcmds[1]: $diffcmds[0];
+    #system qw/sh -c/, 'echo $# -- $0 -- $@', $diffcmd, $_[0], $_[1];
+    print "Executing @{$diffcmd} $_[0] $_[1]\n";
+    $ENV{LESS} = "iP%lt-%lb " . $h0[0]; # '.'s lost. good enough
+    system @{$diffcmd}, $_[0], $_[1];
     unlink $_[0], $_[1];
     $binary = 0;
 }
