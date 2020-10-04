@@ -8,11 +8,12 @@
 #	    All rights reserved
 #
 # Created: Fri 21 Aug 2020 18:18:04 EEST too
-# Last modified: Sat 03 Oct 2020 09:43:21 +0300 too
+# Last modified: Sun 04 Oct 2020 14:22:06 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
-# v1.0: fifos ignored (sockets irrelevant)
+# v: 1.1: dir/file vs dir-file sorting, bsd-tar (looka-)like -s option
+# h: 1.0: fifos ignored (sockets irrelevant)
 
 use 5.012;  # so readdir assigns to $_ in a lone while test
 use strict;
@@ -28,9 +29,10 @@ die "\nUsage: $0 tarname mtime [options] [--] dirs/files\n\n",
   "    yyyy-mm-dd+hh:mm  yyyy-mm-dd+hh  hh:mm  d  \@secs\n",
   "  hh:mm -- hour and min today,  d -- number of days ago 00:00\n\n",
   " options:\n",
-  "    -C          -- change to directory before adding files\n",
-  "   --exclude    -- glob patterns of files to exclude\n",
-  "   --transform  -- pcre (s/.../.../) to modify filenames (or --xform)\n\n"
+  "    -C           -- change to directory before adding files\n",
+  "   --exclude     -- glob patterns of files to exclude\n",
+  "   --transform   -- pcre (s/.../.../) to modify filenames\n",
+  "   --xform / -s  -- like --transform (/.../.../ with -s)\n\n"
   unless @ARGV > 2;
 
 my $of = shift;
@@ -105,6 +107,16 @@ while (@ARGV) {
     }
     if ($_ =~ /^--xform=(.*)/ || $_ =~ /^--transform=(.*)/) {
 	push @xforms, $1;
+	next
+    }
+    # bsd''tar option
+    if ($_ eq '-s') {
+	die "No value for '$_'\n" unless @ARGV;
+	push @xforms, 's' . shift;
+	next
+    }
+    if ($_ =~ /^-s(.*)/) {
+	push @xforms, 's' . $1;
 	next
     }
     die "'$_': unknown option\n"
