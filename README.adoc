@@ -66,6 +66,18 @@ e.g. to bootstrap initial device connections or doing development through
 Uses tcpdump(8) to bypass firewall for reading DHCP traffic.
 
 
+==== link:src/simplecom.c[simplecom]
+
+Very simple serial port communication program. Sets bit rate 115200, 8N1,
+and without hardware flow control. This setup works usually out of the box.
+
+Takes serial device (e.g. /dev/ttyUSB0) and optional log file as an arguments.
+
+Send SIGTERM to *exit* simplecom.  SIGUSR1 to re-open (possibly new) log file.
+
+Simplecom is written in C. Compile it by entering `sh src/simplecom.c`
+
+
 ==== link:sfv[sfv]
 
 Manage versions of a file in a +{filename},sfv+ file. The file format for
