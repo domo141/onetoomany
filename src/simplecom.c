@@ -13,7 +13,7 @@
  *	    All rights reserved
  *
  * Created: Fri 14 Oct 2011 19:16:05 EEST too
- * Last modified: Sat 24 Oct 2020 17:00:17 +0300 too
+ * Last modified: Wed 04 Nov 2020 20:11:23 +0200 too
  */
 
 /* SPDX-License-Identifier: BSD-2-Clause */
@@ -41,7 +41,8 @@
 #pragma GCC diagnostic error "-Wpedantic"
 #endif
 
-#if __GNUC__ >= 7
+#if __GNUC__ >= 7 || defined (__clang__) && __clang_major__ >= 12
+
 // gcc manual says all kind of /* fall.*through */ regexp's work too
 // but perhaps only when cpp does not filter comments out. thus...
 #define FALL_THROUGH __attribute__ ((fallthrough))
