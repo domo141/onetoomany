@@ -96,6 +96,13 @@ developer tools
 ---------------
 
 
+=== link:ediff2[ediff2]
+
+Run emacs and (ediff-buffers) the two (2) files given on command line.
+
+Starts as shell script, re-executes itself as emacs lisp file.
+
+
 ==== link:uni2htmldiff.py[uni2htmldiff.py]
 
 Create side-by-side html 5 document from unified diff source.
@@ -107,17 +114,12 @@ Example run
 ....
 and give the resulting file:// url to web browser for further inspection.
 
-~Note to self: check out ssdiff~
-
 
 ==== link:lossybindiff.py[lossybindiff.py]
 
 Print side-by-side (lossy) hex-ascii dump of 2 files, 2 "lines" (32 bytes)
 of context. If in-context difference is large, shows (only) 4 "lines"
 (64 bytes) of differing data from beginning and end of context.
-
-This is early release; more testing, and program options to be added;
-Neverthelss seems to work at least a bit...
 
 
 ==== link:c-oneliner.sh[c-oneliner.sh]

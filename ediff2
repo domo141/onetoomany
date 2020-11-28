@@ -1,0 +1,68 @@
+#!/bin/sh
+
+:; test $# -ge 2 || { echo Usage: ${0##*/} '[emacs-args]' file1 file2; exit 1; }
+:; set -x; exec "${EMACS:-emacs}" --debug-init -fw --load "$0" "$@"; exit
+
+;; run emacs ediff for two (2) files given on command line
+
+;; Author: Tomi Ollila -- too ät iki piste fi
+;;
+;;	Copyright (c) 2020 Tomi Ollila
+;;	    All rights reserved
+;;
+;; Created: Sun 22 Nov 2020 20:15:29 EET too
+;; Last modified: Sun 29 Nov 2020 00:18:16 +0200 too
+;;
+;; https://www.emacswiki.org/emacs/EmacsScripts explains how this starting works
+;;
+;; Licence: GPLv3+
+
+;; startup message is important, but breaks UX when it apperars...
+(setq inhibit-startup-message t) ;; ...it did not appear always :O
+
+(require 'ediff)
+
+;; https://www.gnu.org/software/emacs/manual/html_mono/ediff.html
+;; documents quite a many hooks, as this is made specially for ediff
+;; many of the setq's that would go to the hooks are just written here
+;; at top-level, for speed and simplicity.
+
+(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+
+(if (eq (frame-parameter nil 'background-mode) 'dark)
+    ;; in black background the grey backgrounds appear too light (for me :O)
+    ;; (for some reason lighter than those should be based on face colors)
+    ;; haven't tried on terminals with less than 256 colors (might be interesti
+    (let ((color-a "#331111") (color-b "#113311"))
+      (set-face-background 'ediff-even-diff-A color-a)
+      (set-face-background 'ediff-odd-diff-A color-a)
+      (set-face-background 'ediff-even-diff-B color-b)
+      (set-face-background 'ediff-odd-diff-B color-b)
+      ))
+
+(add-hook 'ediff-before-setup-hook
+	  (lambda ()
+	    (setq ediff-split-window-function
+		  (if (> (frame-width) 140)
+		      'split-window-horizontally 'split-window-vertically))
+	    ))
+
+(add-hook 'emacs-startup-hook
+	  (lambda ()
+	    (let (b1 b2 b3)
+	      (mapc (lambda (item)
+		      (let ((fn (buffer-file-name item)))
+			(if (and fn (file-exists-p fn))
+			    (if b1 (if b2 (setq b3 item) (setq b2 item))
+			      (setq b1 item)))))
+		    (buffer-list))
+	      (if b3
+		  (error "More than 2 files, not diffing"))
+	      (unless b2
+		(error "Less than 2 files, not diffing"))
+	      (ediff-buffers b1 b2))))
+
+
+;; Local Variables:
+;; mode: emacs-lisp
+;; End:
