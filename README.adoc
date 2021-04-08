@@ -21,6 +21,14 @@ to shell rc files for this to be effective (listed in the beginning of
 the file, just after BSD-2-Clause SPDX license idenfifier line).
 
 
+==== link:repzip.pl[repzip]
+
+Create zip archives reproducible (and with minimal metadata). All files
+in archive will have the same date and time, and when recursing into
+directories the filenames are sorted (in order of the byte strings that
+make up those filenames).
+
+
 ==== link:sshlessfs[sshlessfs]
 
 Mount filesystem from remote system like sshfs but data connection for
