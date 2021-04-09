@@ -9,7 +9,7 @@
 #
 # Created: Sun 18 Aug 2019 18:53:07 EEST too (zipdir.pl)
 # Created: Fri 21 Aug 2020 18:18:04 EEST too (custar.pl)
-# Last modified: Fri 09 Apr 2021 00:04:02 +0300 too
+# Last modified: Fri 09 Apr 2021 22:19:16 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -156,8 +156,15 @@ if (defined $tcwd) {
     chdir $tcwd or die "Cannot chdir to '$tcwd'. $!\n"
 }
 
+if (@ARGV == 1 && $ARGV[0] == '.') {
+    add_dir '.'; # zip(1) drops leading ./ (at least when I tested)
+    shift @ARGV;
+}
+my %hash;
 for (@ARGV) {
-    die "'$_': suspicious path\n" if m,(?:^|/)..?(?:/|$),;
+    warn("'$_': suspicious path. skipping\n"), next if m,(?:^|/)..?(?:/|$),;
+    warn("'$_' already seen. skipping\n"), next if defined $hash{$_};
+    $hash{$_} = 1;
     lstat;
     next if -l _;
     if (-d _) {
@@ -165,16 +172,9 @@ for (@ARGV) {
 	add_dir $_;
 	next
     }
-    if (-f _) {
-	push @files, $_;
-	next
-    }
+    push(@files, $_), next if -f _;
     next if -e _;
     die "'$_': no such file or directory\n";
-}
-
-foreach (@files) {
-    print $_, "\n";
 }
 
 $of = "$swd/$of" if defined $swd and $of !~ /^\//;
@@ -184,7 +184,7 @@ END { return unless defined $owip; chdir $swd if defined $swd; unlink $owip }
 
 $owip = "$of.wip";
 
-open P, '|-', qw/zip -X -@/, $owip or die $!;
+open P, '|-', qw/zip -X -nw -@/, $owip or die $!;
 print P join("\n", @files), "\n";
 close P or die $!;
 
