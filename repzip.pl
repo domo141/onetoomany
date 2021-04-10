@@ -9,7 +9,7 @@
 #
 # Created: Sun 18 Aug 2019 18:53:07 EEST too (zipdir.pl)
 # Created: Fri 21 Aug 2020 18:18:04 EEST too (custar.pl)
-# Last modified: Fri 09 Apr 2021 22:19:16 +0300 too
+# Last modified: Sat 10 Apr 2021 20:29:57 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -42,21 +42,21 @@ if ($gmtime =~ /^@(\d+)$/) {
     $gmtime = $gmtime - $gmtime % 86400 + $1 * 3600 + $2 * 60;
 } elsif ($gmtime =~ /^\d$/) {
     $gmtime = time - 86400 * $gmtime;
-    $gmtime = $gmtime - $gmtime % 86400;
+    $gmtime = $gmtime - $gmtime % 86400
 } elsif ($gmtime =~
 	 /(20\d\d)-([01]\d)-([0-3]\d)$/) {
-    $gmtime = mktime(0, 0, 0, $3, $2 - 1, $1 - 1900);
+    $gmtime = mktime(0, 0, 0, $3, $2 - 1, $1 - 1900)
 } elsif ($gmtime =~
 	 /(20\d\d)-([01]\d)-([0-3]\d)\+([012]\d)$/) {
-    $gmtime = mktime(0, 0, $4, $3, $2 - 1, $1 - 1900);
+    $gmtime = mktime(0, 0, $4, $3, $2 - 1, $1 - 1900)
 } elsif ($gmtime =~
 	 /(20\d\d)-([01]\d)-([0-3]\d)\+([012]\d):([0-5]\d)$/) {
-    $gmtime = mktime(0, $5, $4, $3, $2 - 1, $1 - 1900);
+    $gmtime = mktime(0, $5, $4, $3, $2 - 1, $1 - 1900)
 } elsif ($gmtime =~
 	 /(20\d\d)-([01]\d)-([0-3]\d)[+T]([012]\d):([0-5]\d):([0-5]\d)$/) {
-    $gmtime = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900);
+    $gmtime = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900)
 }
-else { die "'$gmtime': unknown time format\n"; }
+else { die "'$gmtime': unknown time format\n" }
 
 #my $time_date = "\x00\x00\x0f\x4f"; # 2019-08-15 00:00:00
 #                                    # ((2019 - 1980) << 9) + (8 << 5) + 15
@@ -71,7 +71,7 @@ my $time_date;
  my $date = (($lt[5] - 80) << 9) + (($lt[4] + 1) << 5) + $lt[3];
  my $time = ($lt[2] << 11) + ($lt[1] << 5) + int($lt[0] / 2);
 
- $time_date = pack 'vv', $time, $date;
+ $time_date = pack 'vv', $time, $date
 }
 
 my @excludes;
@@ -108,7 +108,7 @@ my $swd;
 if (defined $tcwd) {
     # note: dirhandles, play with first to get understanding...
     die "'$tcwd': not a directory\n" unless -d $tcwd;
-    $swd = getcwd;
+    $swd = getcwd
     #... alternative, openat(2)...
 }
 foreach (@excludes) {
@@ -116,7 +116,7 @@ foreach (@excludes) {
     $_ = "^$_" unless s/^[*]+//;
     $_ = "$_\$" unless s/[*]+$//;
     s/[.]/[.]/g; s/[*]/.*/g; s/[?]/./g;
-    $_ = qr/$_/;
+    $_ = qr/$_/
 }
 push @excludes, qr/^..?$/;
 
@@ -126,7 +126,7 @@ sub include()
     1
 }
 
-my @files;
+my (@files, %hash, $ca);
 
 sub add_dir($);
 sub add_dir($)
@@ -144,11 +144,14 @@ sub add_dir($)
 	    next
 	}
 	if (-f _) {
+	    my $seen = $hash{$_} || '';
+	    die "'$de': found following '$seen' and '$de'\n" if $seen;
+	    $hash{$de} = $ca;
 	    push @files, $de;
 	    next
 	}
 	next if -e _;
-	warn "internal problem: '$de' not found\n"
+	warn "internal problem: file '$de' not found\n"
     }
 }
 
@@ -156,26 +159,34 @@ if (defined $tcwd) {
     chdir $tcwd or die "Cannot chdir to '$tcwd'. $!\n"
 }
 
-if (@ARGV == 1 && $ARGV[0] == '.') {
+if (@ARGV eq 1 && $ARGV[0] eq '.') {
     add_dir '.'; # zip(1) drops leading ./ (at least when I tested)
-    shift @ARGV;
+    shift @ARGV
 }
-my %hash;
 for (@ARGV) {
-    warn("'$_': suspicious path. skipping\n"), next if m,(?:^|/)..?(?:/|$),;
-    warn("'$_' already seen. skipping\n"), next if defined $hash{$_};
-    $hash{$_} = 1;
+    die("'$_': suspicious path\n") if m,(?:^|/)\.\.?(?:/|$),;
     lstat;
     next if -l _;
     if (-d _) {
+	$ca = $_;
 	s:/+$::;
 	add_dir $_;
 	next
     }
-    push(@files, $_), next if -f _;
+    if (-f _) {
+	my $seen = $hash{$_} || '';
+	die "'$_': found following '$seen' and '$_'\n" if $seen;
+	$hash{$_} = $_;
+	push @files, $_;
+	next
+    }
     next if -e _;
-    die "'$_': no such file or directory\n";
+    die "'$_': no such file or directory\n"
 }
+
+die "No files to archive\n" unless @files;
+
+%hash = ();
 
 $of = "$swd/$of" if defined $swd and $of !~ /^\//;
 
@@ -183,6 +194,8 @@ my $owip;
 END { return unless defined $owip; chdir $swd if defined $swd; unlink $owip }
 
 $owip = "$of.wip";
+
+# fixme: stream zip output (pipe and fork) then fix date & time in memory
 
 open P, '|-', qw/zip -X -nw -@/, $owip or die $!;
 print P join("\n", @files), "\n";
@@ -202,7 +215,7 @@ while (1) {
 	syswrite I, $time_date;
 	$o = $o + $cs + $fl + $el + 30;
 	sysseek I, $o, 0 or die $!;
-	next;
+	next
     }
     if ((substr $_, 0, 4) eq "\x50\x4b\x01\x02") {
 	# cental directory header
@@ -212,17 +225,17 @@ while (1) {
 	syswrite I, $time_date;
 	$o = $o + $fl + $el + $kl + 46;
 	sysseek I, $o, 0 or die $!;
-	next;
+	next
     }
-    die "Unknown hdr at $o\n";
+    die "Unknown hdr at $o\n"
 }
 
 # end of central directory record
 unless ((substr $_, 0, 4) eq "\x50\x4b\x05\x06") {
-    die "Unexpected content at $o \n";
+    die "Unexpected content at $o \n"
 }
 close I;
 print "All done\n";
 
 rename $owip, $of;
-undef $owip;
+undef $owip
