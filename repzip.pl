@@ -9,7 +9,7 @@
 #
 # Created: Sun 18 Aug 2019 18:53:07 EEST too (zipdir.pl)
 # Created: Fri 21 Aug 2020 18:18:04 EEST too (custar.pl)
-# Last modified: Sat 10 Apr 2021 20:29:57 +0300 too
+# Last modified: Sun 11 Apr 2021 15:10:08 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -195,7 +195,11 @@ END { return unless defined $owip; chdir $swd if defined $swd; unlink $owip }
 
 $owip = "$of.wip";
 
-# fixme: stream zip output (pipe and fork) then fix date & time in memory
+# attempted to stream zip output (pipe and fork) and modify dates before
+# writing, but (as of 2021-04) zip(1) itself required output to be seekable
+# in order to fix compressed size after file content written (reasonable,
+# as otherwise zip(1) would need to buffer the whole compressed content
+# to know the compressed size, and to write it in the header...
 
 open P, '|-', qw/zip -X -nw -@/, $owip or die $!;
 print P join("\n", @files), "\n";
@@ -235,7 +239,7 @@ unless ((substr $_, 0, 4) eq "\x50\x4b\x05\x06") {
     die "Unexpected content at $o \n"
 }
 close I;
-print "All done\n";
-
 rename $owip, $of;
-undef $owip
+undef $owip;
+
+print "All done\n"
