@@ -86,6 +86,14 @@ Send SIGTERM to *exit* simplecom.  SIGUSR1 to re-open (possibly new) log file.
 Simplecom is written in C. Compile it by entering `sh src/simplecom.c`
 
 
+==== link:txpm2xpm.pl[txpm2xpm]
+
+Convert "text pixmap" file to xpm image(s). Text pixmap format is very easy
+to type using text editor -- easier than editing xpm files. It automatically
+calculates widht and height and catches editing errors before one tries
+to view the final image.
+
+
 ==== link:sfv[sfv]
 
 Manage versions of a file in a +{filename},sfv+ file. The file format for
