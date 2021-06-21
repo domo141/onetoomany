@@ -13,7 +13,7 @@ for users
 ---------
 
 
-==== link:zz.pl[zz]
+=== link:zz.pl[zz]
 
 Full-terminal interactive chdir utility; navigate through directories
 using arrow keys and filtering text. Simple four-liner is to be added
@@ -21,7 +21,7 @@ to shell rc files for this to be effective (listed in the beginning of
 the file, just after BSD-2-Clause SPDX license idenfifier line).
 
 
-==== link:repzip.pl[repzip]
+=== link:repzip.pl[repzip]
 
 Create zip archives reproducible (and with minimal metadata). All files
 in archive will have the same date and time, and when recursing into
@@ -29,7 +29,7 @@ directories the filenames are sorted (in order of the byte strings that
 make up those filenames).
 
 
-==== link:sshlessfs[sshlessfs]
+=== link:sshlessfs[sshlessfs]
 
 Mount filesystem from remote system like sshfs but data connection for
 transferring filesystem content between hosts is unencrypted.
@@ -45,7 +45,7 @@ mounted and sftp-server(8) to the host which provides the filesystem.
 middle ground
 -------------
 
-==== link:poru[poru]
+=== link:poru[poru]
 
 Convenient podman run wrapper. First of all, prefixes `--pull=never --rm -it`
 to the podman run command line options. Mounts current directory
@@ -54,7 +54,7 @@ provides quite a few helper commands when container image (or more run
 options) are not given as first arguments.
 
 
-==== link:nowsync.pl[nowsync.pl]
+=== link:nowsync.pl[nowsync.pl]
 
 Synchronize local directory tree to one or more remote directories and keeps
 updating further changes to remotes.
@@ -65,7 +65,7 @@ Simplest usage command line is +nowsync.pl . remotehost:remotedir+
 which copies local current directory (tree) to 'remotedir' at 'remotehost'.
 
 
-==== link:dhcphaxd.pl[dhcphaxd.pl]
+=== link:dhcphaxd.pl[dhcphaxd.pl]
 
 Offer fixed IP address to any DHCP client making a request. Very useful for
 e.g. to bootstrap initial device connections or doing development through
@@ -74,7 +74,7 @@ e.g. to bootstrap initial device connections or doing development through
 Uses tcpdump(8) to bypass firewall for reading DHCP traffic.
 
 
-==== link:src/simplecom.c[simplecom]
+=== link:src/simplecom.c[simplecom]
 
 Very simple serial port communication program. Sets bit rate 115200, 8N1,
 and without hardware flow control. This setup works usually out of the box.
@@ -86,7 +86,7 @@ Send SIGTERM to *exit* simplecom.  SIGUSR1 to re-open (possibly new) log file.
 Simplecom is written in C. Compile it by entering `sh src/simplecom.c`
 
 
-==== link:txpm2xpm.pl[txpm2xpm]
+=== link:txpm2xpm.pl[txpm2xpm]
 
 Convert "text pixmap" file to xpm image(s). Text pixmap format is very easy
 to type using text editor -- easier than editing xpm files. It automatically
@@ -94,13 +94,13 @@ calculates widht and height and catches editing errors before one tries
 to view the final image.
 
 
-==== link:sfv[sfv]
+=== link:sfv[sfv]
 
 Manage versions of a file in a +{filename},sfv+ file. The file format for
 +,sfv+ file is 'ar(5)' and the original file is never modified by this tool.
 
 
-==== link:ipv6llchat.pl[ipv6llchat.pl] (prototype)
+=== link:ipv6llchat.pl[ipv6llchat.pl] (prototype)
 
 Send short messages to the people near you on their computers connected
 to the same local area network. These computers does not need to have
@@ -114,7 +114,7 @@ diff tools
 This used to be in *developer tools* section, but since so many `diff`
 related tools it perhaps is clearer to have their own section.
 
-==== link:ediff2[ediff2]
+=== link:ediff2[ediff2]
 
 Run emacs and (ediff-buffers) the two (2) files given on command line.
 
@@ -143,7 +143,7 @@ Then on another terminal
 In the example, `xxdiff` is used to show diffs...
 
 
-==== link:uni2htmldiff.py[uni2htmldiff.py]
+=== link:uni2htmldiff.py[uni2htmldiff.py]
 
 Create side-by-side html 5 document from unified diff source.
 
@@ -155,7 +155,7 @@ Example run
 and give the resulting file:// url to web browser for further inspection.
 
 
-==== link:lossybindiff.py[lossybindiff.py]
+=== link:lossybindiff.py[lossybindiff.py]
 
 Print side-by-side (lossy) hex-ascii dump of 2 files, 2 "lines" (32 bytes)
 of context. If in-context difference is large, shows (only) 4 "lines"
@@ -165,7 +165,7 @@ of context. If in-context difference is large, shows (only) 4 "lines"
 other developer tools
 ---------------------
 
-==== link:c-oneliner.sh[c-oneliner.sh]
+=== link:c-oneliner.sh[c-oneliner.sh]
 
 "One line" of C code given from command line compiled in +main()+ and
 then executed (by default). Useful for quickly testing simple things.
@@ -175,7 +175,7 @@ server setups
 -------------
 
 
-==== link:gitrepos.sh[gitrepos.sh]
+=== link:gitrepos.sh[gitrepos.sh]
 
 Share git repositories (and files) among friendly and polite users.
 
