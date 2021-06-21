@@ -108,15 +108,39 @@ any other than (required) ipv6 link local address configured (i.e.
 communication is possible even when getting ip address fails for some reason).
 
 
-developer tools
----------------
+diff tools
+----------
 
+This used to be in *developer tools* section, but since so many `diff`
+related tools it perhaps is clearer to have their own section.
 
-=== link:ediff2[ediff2]
+==== link:ediff2[ediff2]
 
 Run emacs and (ediff-buffers) the two (2) files given on command line.
 
 Starts as shell script, re-executes itself as emacs lisp file.
+
+
+=== link:rdiff[rdiff.pl]
+
+Create a tunnel from one host to another, then on this another host,
+execute `rdiff.pl file1 file1` and do the diffing on this first host.
+
+The `rdiff.pl` must be available on both hosts; the same program is
+used for both tunnel endpoints and as the diff tool to feed data
+through it to the diff program.
+
+Sample creation of a tunnel
+....
+   $ ./rdiff.pl . xxdiff ssh 127.0.0.1 $PWD/rdiff.pl
+....
+
+Then on another terminal
+....
+   $ git cat-file -p HEAD^:README.adoc | ./rdiff.pl - README.adoc
+....
+
+In the example, `xxdiff` is used to show diffs...
 
 
 ==== link:uni2htmldiff.py[uni2htmldiff.py]
@@ -137,6 +161,9 @@ Print side-by-side (lossy) hex-ascii dump of 2 files, 2 "lines" (32 bytes)
 of context. If in-context difference is large, shows (only) 4 "lines"
 (64 bytes) of differing data from beginning and end of context.
 
+
+other developer tools
+---------------------
 
 ==== link:c-oneliner.sh[c-oneliner.sh]
 
