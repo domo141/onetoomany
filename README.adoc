@@ -121,7 +121,7 @@ Run emacs and (ediff-buffers) the two (2) files given on command line.
 Starts as shell script, re-executes itself as emacs lisp file.
 
 
-=== link:rdiff[rdiff.pl]
+=== link:rdiff.pl[rdiff.pl]
 
 Create a tunnel from one host to another, then on this another host,
 execute `rdiff.pl file1 file1` and do the diffing on this first host.
