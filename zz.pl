@@ -14,7 +14,7 @@
 # Author: Tomi Ollila -- too ät iki piste fi
 #
 # Created: Sun 08 Sep 2019 17:40:28 EEST too
-# Last modified: Mon 21 Jun 2021 23:20:47 +0300 too
+# Last modified: Wed 23 Jun 2021 19:18:09 +0300 too
 
 # lacks some features but is good enough.
 
@@ -24,7 +24,7 @@ use warnings;
 
 use Term::ReadKey;
 
-use locale;  # for sort collation order
+BEGIN { eval 'use locale' } # for sort collation order
 
 $ENV{'PATH'} = '/ei-polkua-minnekään';
 

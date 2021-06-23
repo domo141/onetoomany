@@ -3,7 +3,7 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Sun 09 Feb 2020 21:04:17 +0200 too
+# Last modified: Wed 26 May 2021 18:43:56 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -70,7 +70,7 @@ die "'tcpdump' not found (in \$PATH)\n" unless which 'tcpdump';
 
 # parts from https://stackoverflow.com/questions/4101219/how-can-i-find-the-ip-addresses-for-each-interface-in-perl
 #use Socket;
-require 'sys/ioctl.ph';
+require 'sys/ioctl.ph'; # cd /usr/include; sudo h2ph -r .
 
 my ($localip, $localmask);
 
