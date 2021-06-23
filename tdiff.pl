@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # -*- mode: cperl; cperl-indent-level: 4 -*-
-# $ rdiff.pl $
+# $ tdiff.pl $
 #
 # Author: Tomi Ollila -- too ät iki piste fi
 #
@@ -8,14 +8,18 @@
 #	    All rights reserved
 #
 # Created: Mon 14 Jun 2021 22:11:24 EEST too
-# Last modified: Mon 21 Jun 2021 23:38:35 +0300 too
+# Last modified: Wed 23 Jun 2021 19:13:56 +0300 too
+
+# "tunneled diff": create tdiff tunnel (e.g. using ssh),
+# at one tunnel endpoint execute tdiff file1 file1 -- diff
+# to be executed (graphically?) on the other tunnel endpoint
 
 use 5.8.1;
 use strict;
 use warnings;
 use Socket;
 
-# hint: when testing, execute ./rdiff.pl . diff ./rdiff.pl
+# hint: when testing, execute ./tdiff.pl . diff ./tdiff.pl
 
 sub _die (@) { print STDERR "@_\n"; exit 1 }
 
@@ -49,7 +53,7 @@ BEGIN {
 
     # note: abstract socket namespace (linux only ?)
     # no need to play w/ potentially dangling socket file
-    $sockpath = "\0@/tmp/rdiff-1-$<";
+    $sockpath = "\0@/tmp/tdiff-1-$<";
 
     sub readfile($$)
     {
@@ -130,7 +134,7 @@ BEGIN {
     }
 }
 
-my $ident = "rdiff-1\0\n";
+my $ident = "tdiff-1\0\n";
 
 my ($o0, $n1, $n2, $n3, $l1, $l2, $l3);
 
@@ -152,9 +156,9 @@ if ($ARGV[1] eq 'l:sten') {
     bind SS, $addr or _die "Cannot bind $sockpath: $!";
     listen SS, 5;
     syswrite STDOUT, $ident;
-    print "s: waiting 'rdiff-1' response from c\n";
+    print "s: waiting 'tdiff-1' response from c\n";
     sysread STDIN, $_, 32;
-    _die "s: did not get rdiff-1...from c" unless $_ eq $ident;
+    _die "s: did not get tdiff-1...from c" unless $_ eq $ident;
     print "s: response ok -- ready to receive diff content from $bn0\n";
     my ($cin, $sin) = (0, fileno(SS));
     my $in = ''; vec($in, $cin, 1) = 1; vec($in, $sin, 1) = 1;
@@ -210,13 +214,13 @@ close C;
 $c = 'c';
 select((select(S), $| = 1)[$[]);
 syswrite S, $ident;
-print "c: waiting 'rdiff-1' response from s\n";
+print "c: waiting 'tdiff-1' response from s\n";
 sysread S, $_, 32;
-_die "c: did not get rdiff-1... from s" unless $_ eq $ident;
+_die "c: did not get tdiff-1... from s" unless $_ eq $ident;
 print "c: response ok -- ready to receive diff content from s\n";
 
 my $tdir = $ENV{XDG_RUNTIME_DIR} || "/tmp"; # /tmp if undefined or empty
-$tdir = "$tdir/rdiff-$<-$$";
+$tdir = "$tdir/tdiff-$<-$$";
 mkdir $tdir, 0700 or _die "Cannot mkdir $tdir: $!";
 eval 'END { system qw/rm -rf/, $tdir if defined $tdir }';
 $SIG{HUP} = $SIG{INT} = $SIG{QUIT} = $SIG{TERM} = sub { print "\n"; exit };

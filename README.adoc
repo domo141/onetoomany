@@ -121,23 +121,23 @@ Run emacs and (ediff-buffers) the two (2) files given on command line.
 Starts as shell script, re-executes itself as emacs lisp file.
 
 
-=== link:rdiff.pl[rdiff.pl]
+=== link:tdiff.pl[tdiff.pl]
 
 Create a tunnel from one host to another, then on this another host,
-execute `rdiff.pl file1 file1` and do the diffing on this first host.
+execute `tdiff.pl file1 file1` and do the diffing on this first host.
 
-The `rdiff.pl` must be available on both hosts; the same program is
+The `tdiff.pl` must be available on both hosts; the same program is
 used for both tunnel endpoints and as the diff tool to feed data
 through it to the diff program.
 
 Sample creation of a tunnel
 ....
-   $ ./rdiff.pl . xxdiff ssh 127.0.0.1 $PWD/rdiff.pl
+   $ ./tdiff.pl . xxdiff ssh 127.0.0.1 $PWD/tdiff.pl
 ....
 
 Then on another terminal
 ....
-   $ git cat-file -p HEAD^:README.adoc | ./rdiff.pl - README.adoc
+   $ git cat-file -p HEAD^:README.adoc | ./tdiff.pl - README.adoc
 ....
 
 In the example, `xxdiff` is used to show diffs...
