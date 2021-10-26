@@ -14,7 +14,7 @@
 # Author: Tomi Ollila -- too ät iki piste fi
 #
 # Created: Sun 08 Sep 2019 17:40:28 EEST too
-# Last modified: Wed 23 Jun 2021 19:18:09 +0300 too
+# Last modified: Thu 26 Aug 2021 15:19:49 +0300 too
 
 # lacks some features but is good enough.
 
@@ -39,6 +39,10 @@ my $cwd;
 if (@ARGV) {
     $cwd = $ARGV[0];
     die "$cwd not absolute\n" unless ord($cwd) == 47;
+    while (! -d $cwd) {
+	$cwd =~ s|/[^/]*$||;
+	last unless length $cwd > 1;
+    }
     chdir $cwd or die "cd '$cwd': $!";
 } else {
     $cwd = $ENV{PWD};
