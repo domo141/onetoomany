@@ -121,6 +121,19 @@ Run emacs and (ediff-buffers) the two (2) files given on command line.
 Starts as shell script, re-executes itself as emacs lisp file.
 
 
+=== link:bdhdiff.pl[bdhdiff.pl]
+
+Binary Dump-Hex Diff.
+
+Works by converting bytes in binary files to hexadecimal numbers one
+byte per line and then running `diff(1)` for the content. The output of
+the diff command is then colored and converted to `hexdump -C` style
+printout.
+
+This may prove useful. Note that diffing large files (like hundreds of
+kilobytes) is not instantaneous (anymore).
+
+
 === link:tdiff.pl[tdiff.pl]
 
 Create a tunnel from one host to another, then on this another host,
