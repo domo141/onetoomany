@@ -8,16 +8,30 @@
 #	    All rights reserved
 #
 # Created: Mon 25 Oct 2021 19:17:16 EEST too
-# Last modified: Tue 26 Oct 2021 23:39:06 +0300 too
+# Last modified: Mon 01 Nov 2021 17:09:16 +0200 too
 
 use 5.8.1;
 use strict;
 use warnings;
 use POSIX;
 
+my $cx = "16";
+
+if (@ARGV > 2) {
+    if ($ARGV[0] eq '-U') {
+	$cx = $ARGV[1];
+	shift; shift
+    } elsif ($ARGV[0] =~ /-U(.*)/) {
+	$cx = $1;
+	shift
+    }
+    else { die "'$ARGV[0]': unknown option (or too many args)\n" }
+    die "'$cx': invalid context length\n" unless $cx =~ /^\d+$/;
+}
+
 die "\nBinary Dump-Hex Diff
 
-Usage: $0 file1 file2\n\n" unless @ARGV == 2;
+Usage: $0 [-U num] file1 file2\n\n" unless @ARGV == 2;
 
 pipe R1, W1 or die;
 pipe R2, W2 or die;
@@ -32,7 +46,7 @@ if (fork == 0) {
     POSIX::dup2(fileno(R1), 3); # no close-on-exec
     POSIX::dup2(fileno(R2), 4); # ditto
     open STDOUT, '>&', W3 or die $!;
-    exec qw'diff -U16 /dev/fd/3 /dev/fd/4';
+    exec qw/diff -U/, $cx, qw'/dev/fd/3 /dev/fd/4';
     die 'not reached'
 }
 
@@ -54,7 +68,7 @@ if (fork == 0) {
     sub hexdump16() {
 	print $ns, "@cap[0..7]  @cap[8..15]   ";
 	print $hash{$_} for (@cap);
-	print "\n";
+	print "\033[m\n";
 	@cap = ()
     }
     sub hexdump() {
@@ -62,7 +76,7 @@ if (fork == 0) {
 	else { print $ns, "@cap[0..7]  @cap[8..$#cap]   " }
 	print "   " x (16 - @cap);
 	print $hash{$_} for (@cap);
-	print "\n";
+	print "\033[m\n";
 	@cap = ()
     }
     my $cap = '';
@@ -78,17 +92,20 @@ if (fork == 0) {
     sub cap($$$) {
 	if ($_[0] ne $cap) {
 	    hexdump if @cap;
-	    print "\033[$_[2]m";
 	    $cap = $_[0];
-	    if ($cap eq '-')    { $ns = sprintf('%8x  -', $nrl) }
-	    elsif ($cap eq '+') { $ns = sprintf('%8x  -', $nrr) }
+	    if ($cap eq '-')    { $ns = sprintf("\033[$_[2]m%8x  -", $nrl) }
+	    elsif ($cap eq '+') { $ns = sprintf("\033[$_[2]m%8x  +", $nrr) }
 	    else { $ns = ' ' x 11 }
 	}
 	if ($cap eq '-')    { $nrl++ }
 	elsif ($cap eq '+') { $nrr++ }
 	else { $nrl++; $nrr++ }
 	push @cap, $_[1];
-	hexdump16 if @cap == 16
+	if (@cap == 16) {
+	    hexdump16;
+	    if ($cap eq '-')    { $ns = sprintf("\033[$_[2]m%8x  -", $nrl) }
+	    elsif ($cap eq '+') { $ns = sprintf("\033[$_[2]m%8x  +", $nrr) }
+	}
     }
     while (<R3>) {
 	at, next if /^@@ -(\d+),(\d+) [+](\d+),(\d+) /;

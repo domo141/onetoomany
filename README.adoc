@@ -131,7 +131,8 @@ the diff command is then colored and converted to `hexdump -C` style
 printout.
 
 This may prove useful. Note that diffing large files (like hundreds of
-kilobytes) is not instantaneous (anymore).
+kilobytes) is not instantaneous (and diff(1) execution time may be in
+the magnitude of 200s when diffing two 16MiB files).
 
 
 === link:tdiff.pl[tdiff.pl]
