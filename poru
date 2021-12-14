@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Sat 29 Aug 2020 00:58:42 +0300 too
+# Last modified: Tue 14 Dec 2021 23:03:43 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -59,7 +59,9 @@ esac
 pi_f=
 _images () {
 	f=$1; s=$2 shift 2
-	pi_f='podman images '$pi_f'--format'
+	# retrofitted --sort=... (2021-12-14)
+	case ${1-} in --sort=*) pi_f=${pi_f:+$pi_f }$1; shift; esac
+	pi_f='podman images '$pi_f' --format'
 	#case ${1-} in	'')   exec $pi_f "$f"
 	case ${1-} in	'')   $pi_f "$f" | sed -n ${s:+-e "$s"} -e p
 	;; [1-9]|[1-9][0-9])  $pi_f "$f" | sed ${s:+-e "$s"} -e $1q
@@ -106,8 +108,8 @@ cmd_l ()
 	_images '{{.ID}}  {{.Repository}}:{{.Tag}}' '' "$@"
 }
 
-cmd_ia () { pi_f='-a '; cmd_i "$@"; }
-cmd_la () { pi_f='-a '; cmd_l "$@"; }
+cmd_ia () { pi_f='-a'; cmd_i "$@"; }
+cmd_la () { pi_f='-a'; cmd_l "$@"; }
 
 _ps ()
 {
