@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Mon 25 Oct 2021 19:17:16 EEST too
-# Last modified: Mon 01 Nov 2021 17:09:16 +0200 too
+# Last modified: Fri 12 Nov 2021 16:03:37 +0200 too
 
 use 5.8.1;
 use strict;
@@ -85,7 +85,8 @@ if (fork == 0) {
 	hexdump if @cap;
 	# XTERM control sequences, good enough(?) (tput setaf <n>, tput sgr0)
 	($nrl, $nrr) = ($1 - 1, $3 - 1);
-	printf "\033[36m@@ -:$nrl(0x%x),$2b +:$nrr(0x%x),$4b @@\n", $nrl, $nrr;
+	printf "\033[36m@@ -:$nrl(0x%x),$2b +:$nrr(0x%x),$4b @@\033[m\n",
+	  $nrl, $nrr;
 	$cap = '' # [36m above -- cyan
     }
     at;
