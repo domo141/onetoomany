@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Mon 14 Jun 2021 22:11:24 EEST too
-# Last modified: Wed 23 Jun 2021 19:13:56 +0300 too
+# Last modified: Thu 04 Nov 2021 19:00:06 +0200 too
 
 # "tunneled diff": create tdiff tunnel (e.g. using ssh),
 # at one tunnel endpoint execute tdiff file1 file1 -- diff
@@ -74,6 +74,7 @@ BEGIN {
 	open O, '>', $of or _die "Opening for write failed: $!";
 	print O $_ or _die "Write failed: $!";
 	close O or _die "Write failed: $!";
+	chmod 0755, "$_[0]-new" if -x "$_[0]"
     }
 
     if ($ARGV[0] ne '.')
