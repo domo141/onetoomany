@@ -108,6 +108,13 @@ any other than (required) ipv6 link local address configured (i.e.
 communication is possible even when getting ip address fails for some reason).
 
 
+=== link:src/connect-forward.c[connect-forward]
+
+Listens (currently) connections from localhost:8080, expects HTTP CONNECT
+reguest, and if the request can be fulfilled forwards data bidirectionally
+between endpoints (see also: https://en.wikipedia.org/wiki/HTTP_tunnel).
+
+
 diff tools
 ----------
 
