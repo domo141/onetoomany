@@ -11,7 +11,7 @@
 ;;	    All rights reserved
 ;;
 ;; Created: Sun 22 Nov 2020 20:15:29 EET too
-;; Last modified: Sun 29 Nov 2020 00:18:16 +0200 too
+;; Last modified: Tue 08 Dec 2020 19:55:56 +0200 too
 ;;
 ;; https://www.emacswiki.org/emacs/EmacsScripts explains how this starting works
 ;;
@@ -53,13 +53,12 @@
 	      (mapc (lambda (item)
 		      (let ((fn (buffer-file-name item)))
 			(if (and fn (file-exists-p fn))
-			    (if b1 (if b2 (setq b3 item) (setq b2 item))
-			      (setq b1 item)))))
+			    (set (if b1 (if b2 'b3 'b2) 'b1) item))))
 		    (buffer-list))
 	      (if b3
 		  (error "More than 2 files, not diffing"))
 	      (unless b2
-		(error "Less than 2 files, not diffing"))
+		(error "Less than 2 files, not diffing (typo?)"))
 	      (ediff-buffers b1 b2))))
 
 
