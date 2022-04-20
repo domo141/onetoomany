@@ -20,7 +20,7 @@
  *          All rights reserved
  *
  * Created: Tue 19 Apr 2022 19:21:26 EEST too
- * Last modified: Tue 19 Apr 2022 22:51:49 +0300 too
+ * Last modified: Wed 20 Apr 2022 18:20:39 +0300 too
  */
 
 // usage for compilation: sh connect-forward.c [-o outfile] [compiler options]
@@ -132,6 +132,7 @@
 #include <sys/poll.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <signal.h>
 #include <errno.h>
 
 #define null NULL
@@ -268,6 +269,7 @@ int main(void)
 //int main(int argc, char * argv[])
 {
     int ssd = xbind_listen_tcp4_socket();
+    signal(SIGCHLD, SIG_IGN); /* no need to care */
     while (1) {
         int sd = accept(ssd, null, 0);
         if (sd < 0)
