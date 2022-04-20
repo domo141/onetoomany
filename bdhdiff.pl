@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Mon 25 Oct 2021 19:17:16 EEST too
-# Last modified: Fri 12 Nov 2021 16:03:37 +0200 too
+# Last modified: Fri 17 Dec 2021 11:56:35 +0200 too
 
 use 5.8.1;
 use strict;
@@ -43,10 +43,13 @@ pipe R3, W3 or die;
 
 if (fork == 0) {
     # exec'ing here so close-on-exec effective
-    POSIX::dup2(fileno(R1), 3); # no close-on-exec
-    POSIX::dup2(fileno(R2), 4); # ditto
+    POSIX::dup2(fileno(R1), 21) or die; # no close-on-exec
+    POSIX::dup2(fileno(R2), 22) or die; # ditto
+    # dup to 21&22 instead of 3&4 -- ls -l /proc/self/fd showed
+    # weird info while strace -e trace=dup2 ... show ok info
+    #system qw'ls -l /proc/self/fd'; exit;
     open STDOUT, '>&', W3 or die $!;
-    exec qw/diff -U/, $cx, qw'/dev/fd/3 /dev/fd/4';
+    exec qw/diff -U/, $cx, qw'/dev/fd/21 /dev/fd/22';
     die 'not reached'
 }
 
