@@ -100,6 +100,12 @@ Manage versions of a file in a +{filename},sfv+ file. The file format for
 +,sfv+ file is 'ar(5)' and the original file is never modified by this tool.
 
 
+=== link:xpm-to-braille.pl[xpm-to-braille]
+
+Convert 2-color xpm file to utf8 text of braille characters. One braille
+character in 0x2800-0x29ff range presents 2x4 pixels of the xpm image.
+
+
 === link:ipv6llchat.pl[ipv6llchat.pl] (prototype)
 
 Send short messages to the people near you on their computers connected
