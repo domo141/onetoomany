@@ -9,7 +9,7 @@
 #
 # Created: Wed 09 Dec 2015 19:02:24 EET too  (as bdfbits-braille.pl)
 # Created: Sat 25 Jun 2022 12:14:16 EEST too
-# Last modified: Sat 25 Jun 2022 14:38:58 +0300 too
+# Last modified: Sun 03 Jul 2022 21:35:24 +0300 too
 
 use 5.8.1;
 use strict;
@@ -89,8 +89,11 @@ sub brout()
     @l = ();
 }
 
+while (<I>) { last if /\d\s+\d+\s+\d+\s+\d/ }
+
 while (<I>) {
-    if (/^"(.) c (\w+)",/) {
+    next if m|/[*].*[*]/|;
+    if (/^"(.)\s+c\s+(#?\w+)",/) {
 	die "$0: Too many colors in $ARGV[0]\n"
 	  if defined $pxb and defined $pxf;
 	if ($2 eq 'None') {
@@ -101,12 +104,14 @@ while (<I>) {
 	if (defined $pxb) { $pxf = $1 } else { $pxb = $1 }
 	next
     }
-    last if /[*]\s+pi[x]els\s+[*]/
+    last;
 }
 
 die "$0: '$ARGV[0]': Not 2-color .xpm\n" unless defined $pxb and defined $pxf;
 
 ($pxb, $pxf) = ($pxf, $pxb) if $reverse_colors;
+
+push @l, $1 if /^"(.*)"/;
 
 while (<I>)
 {
