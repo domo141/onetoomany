@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Thu 18 Aug 2022 21:51:59 +0300 too
+# Last modified: Wed 05 Oct 2022 20:53:20 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -26,13 +26,13 @@ case ${1-}
 in '')
 	exec >&2; echo
 	echo "Usage: ${0##*/} [podman run options] or helper command"
-	echo '  helper commands:  r  i ia  l la  ps psa  e  mvtag  - and rmi'
+	echo '  helper commands:  r  i ia  l la  ps psa  e  mvtag  push and rmi'
 	echo '  also, the following podman(1) commands are passed through:'
 	echo '       tag  rm  history  inspect  pull  run  start  exec  stop'
 	echo '  echo; cat /run/.containerenv; echo; echo'
 	echo; exit 1
 
-;; r | i | l | ia | la | ps | psa | e | mvtag | rmi )
+;; r | i | l | ia | la | ps | psa | e | mvtag | push | rmi )
 	cmd=$1
 
 ;; tag | rm | history | inspect | pull | run | start | exec | stop )
@@ -74,7 +74,7 @@ _images () {
 
 cmd_r ()
 {
-	test $# != 0 || die "Usage: $0 r image-re [podman run args]"
+	test $# != 0 || die "Usage: ${0##*/} r image-re [podman run args]"
 	case $1 in *'|'*) die "'|' in '$1'"; esac
 	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading --filter=reference="$1" | sed q`
 	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
@@ -139,6 +139,24 @@ cmd_e ()
 			;; 2..) set -- "$1" /bin/zsh
 	esac
 	x_exec podman exec -it -w "$PWD" "$@"
+}
+
+cmd_push ()
+{
+	test $# -ge 2 || die "Usage: ${0##*/} $cmd [opts] image destination[/]"
+	eval la=\$$#
+	# does last arg end in '/'?
+	case $la in */)
+		a1=$1 a2=$2; shift 2
+		for arg
+		do
+			shift
+			set -- "$@" $a1
+			a1=$a2; a2=$arg
+		done
+		set -- "$@" $a1 $a2$a1
+	esac
+	x_exec podman push "$@"
 }
 
 cmd_rmi ()
