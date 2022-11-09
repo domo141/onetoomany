@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 16 May 2015 11:40:42 EEST too
-# Last modified: Thu 04 Jun 2020 22:08:15 +0300 too
+# Last modified: Wed 09 Nov 2022 20:19:25 +0200 too
 
 =encoding utf8
 
@@ -255,11 +255,18 @@ Tomi Ollila -- too ät iki piste fi
 
 =head1 VERSION
 
-1.0 (2015-06-11)
+1.2 (2022-11-09)
 
 =cut
 
 # History
+#
+# 1.2  2022-11-09  drop -T from ssh_command command line, message updates
+#
+#  The "hardcoded" -T option for ssh caused problems when ssh(1) or
+#  executable given with --ssh-command= did not handle it. In non-interactive
+#  ssh execution tty is not created by default anyway to the option could be
+#  dropped (nowsync.pl -T to sync only text files is preserved, though).
 #
 # 1.1  2015-06-14  txtonly bug fix, 4th iteration of the name
 #
@@ -506,12 +513,12 @@ foreach (@ARGV) {
 	open STDOUT, '>&', $fd2 or pdie;
 	$ENV{LC_ALL} = $ENV{LANG} = 'C';
 	warn "running '", join("' '", @ssh_command),
-	  "' '-T' '$rhost' '$perl_command - nowsync-server'\n";
+	  "' '$rhost' '$perl_command - nowsync-server'\n";
 	syswrite $fd2, 'ready.' or pdie;
 	# --ssh-command options for development & testing (note spacing):
 	# --ssh-command='sh  -c  cat >&2'  # to see what code is sent remote
 	# --ssh-command='perl  -'          # to test on local fs
-	exec @ssh_command, '-T', $rhost, "$perl_command - nowsync-server";
+	exec @ssh_command, $rhost, "$perl_command - nowsync-server";
 	exit 1;
     }
     #parent
@@ -582,8 +589,9 @@ sub remote_main ()
 	if (/::path:: (.*)/) {
 	    if ($1 ne '.' and $1 ne '') {
 		unless (chdir ($1)) {
+		    pwarn "Cannot chdir to $1:";
 		    syswrite STDOUT, 'path cd failed.';
-		    pdie "Cannot chdir to $1:"
+		    exit 1
 		}
 	    }
 	    last
@@ -636,7 +644,9 @@ sub remote_main ()
     push @list, "//eol//\n";
     #syswrite STDERR, join "\n", @list;
     syswrite STDOUT, join "\n", @list;
-    pwarn '# of initially matched files (sans dirs):', $imatches;
+    pwarn '# of initially "matched" files (sans dirs):',
+      $imatches;
+    pwarn '# of files expected to be copied over:', $#list; # sans //eol//
     undef @list;
 
     # and now to request loop -- all responses to stderr for now...
@@ -841,11 +851,18 @@ sub attrib_all($) {
 my $pevents = '';
 my ($time, $events, $name); # here for continue block visibility
 while (<P>) {
-    print 'iw: ', $_;
     ($time, $events, $path) = split ' ', $_, 3;
     my ($dir, $name) = split ' // ', $path;
     chomp $name;
-    next unless chkexcludes $name;
+    # all inotify vs. perl exclude-regexps don't match, therefore this
+    # check is needed here. I recall there was some related problem
+    # but I cannot remember just now what was it...
+    unless (chkexcludes $name) {
+	chomp;
+	print 'iw: ', $_, " (excluded)\n"; # iw: = inotifywait:
+	next;
+    }
+    print 'iw: ', $_;
     if ($events =~ /CLOSE_WRITE/) {
 	copy_to_all $dir . $name;
 	next;
@@ -892,14 +909,16 @@ while (<P>) {
 	    remove_all $dir . $name;
 	    redo; # note, continue block below not executed.
 	}
-	print 'iw: ', $_;
 	my ($time2, $events2, $path2) = split ' ', $_, 3;
 	my ($dir2, $name2) = split ' // ', $path2;
 	chomp $name2;
 	unless (chkexcludes $name2) {
+	    chomp;
+	    print 'iw: ', $_, " (excluded)\n";
 	    remove_all $dir . $name;
 	    next;
 	}
+	print 'iw: ', $_;
 	if ($time2 - $time > 1) { # heuristic :/
 	    remove_all $dir . $name;
 	    if ($events2 =~ /ISDIR/) { mkdir_all $dir2 . $name2; }
