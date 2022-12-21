@@ -2,12 +2,12 @@
  set -euf; trg=${0##*''/}; trg=${trg%.c}; test ! -e "$trg" || rm "$trg"
  case ${1-} in '') set x -O2; shift; esac
  #case ${1-} in '') set x -ggdb; shift; esac
- set -x; exec ${CC:-gcc} -std=c99 "$@" -o "$trg" "$0"
+ set -x; exec ${CC:-gcc} -std=c11 "$@" -o "$trg" "$0"
  exit $?
  */
 #endif
 /*
- * $ teebgts.c $
+ * $ teedots.c $
  *
  * Author: Tomi Ollila -- too ät iki piste fi
  *
@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Wed 21 Dec 2022 22:18:03 +0200 too
+ * Last modified: Wed 21 Dec 2022 22:20:16 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -114,8 +114,13 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
 #include <time.h>
 #include <err.h>
+
+/* some compiler setups complain:  warning: ignoring return value of ‘write’,
+   declared with attribute warn_unused_result [-Wunused-result] */
+#define write (void)!write
 
 int ffd = -1;
 
@@ -206,10 +211,6 @@ static void s_ms_s(char * buf, time_t s, long ns)
     ns = ns / 10;  buf[6] = '0' + ns;
  }
 
-/* some compiler setups complain:  warning: ignoring return value of ‘write’,
-   declared with attribute warn_unused_result [-Wunused-result] */
-#define write (void)!write
-
 int main(int argc, char * argv[])
 {
     if (argc < 3) {
@@ -228,8 +229,9 @@ int main(int argc, char * argv[])
     clock_gettime(CLOCK_REALTIME, &start_tv);
     s_ms_s(buf, 0, start_tv.tv_nsec);
     write(fd, buf, 17);
-    write(1, buf, 17);
+    write(1, buf, 16);
     int ts = 1;
+    int dc = 0;
     while (1) {
 #if !TEST
         int l = read(0, buf + 11, BUFSIZE);
@@ -240,14 +242,25 @@ int main(int argc, char * argv[])
         if (ts) {
             clock_gettime(CLOCK_REALTIME, &tv);
         }
-        write(1, buf + 11, l);
         char *pp = buf, *p = buf + 11;
         int i = 0;
         while (i++ < l) {
             if (*p++ == '\n') {
-                if (ts)
+                if (ts || dc == 0) {
                     s_ms_s(pp, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
-                else {
+                }
+                if (dc++ == 0) {
+                    struct iovec iov[3] = {
+                        { .iov_base = (char*)(intptr_t)"\n", .iov_len = 1 },
+                        { .iov_base = pp, .iov_len = 11 },
+                        { .iov_base = (char*)(intptr_t)".", .iov_len = 1 }
+                    };
+                    (void)!writev(1, iov, 3);
+                } else {
+                    write(1, ".", 1);
+                    if (dc > 64) dc = 0;
+                }
+                if (ts == 0) {
                     pp += 11;
                     ts = 1;
                 }
@@ -270,6 +283,7 @@ int main(int argc, char * argv[])
     s_ms_s(buf, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
     memcpy(buf + 11, "eof!\n", 5);
     write(fd, buf, 16);
+    write(1, "\n", 1);
     write(1, buf, 16);
     int wstatus;
     pid_t pid = wait(&wstatus);
