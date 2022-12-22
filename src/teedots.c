@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Wed 21 Dec 2022 22:20:16 +0200 too
+ * Last modified: Thu 22 Dec 2022 22:17:29 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -221,6 +221,8 @@ int main(int argc, char * argv[])
     if (fd < 0) err(1, "cannot open file %s", argv[1]);
     ffd = fd;
     tsmsgf("%s ...\n", argv[2]);
+    char dots[] = ".................................."
+        "..................................";
     run_command(argv + 2);
 #define BUFSIZE 16384
     char buf[BUFSIZE + 12];
@@ -246,19 +248,20 @@ int main(int argc, char * argv[])
         int i = 0;
         while (i++ < l) {
             if (*p++ == '\n') {
-                if (ts || dc == 0) {
+                int cdc = dc++ & 63;
+                if (ts || cdc == 0) {
                     s_ms_s(pp, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
                 }
-                if (dc++ == 0) {
+                if (cdc == 0) {
+                    int dl = snprintf(dots, 24, "%d", dc); dots[dl] = '.';
                     struct iovec iov[3] = {
                         { .iov_base = (char*)(intptr_t)"\n", .iov_len = 1 },
                         { .iov_base = pp, .iov_len = 11 },
-                        { .iov_base = (char*)(intptr_t)".", .iov_len = 1 }
+                        { .iov_base = dots, .iov_len = 1 }
                     };
                     (void)!writev(1, iov, 3);
                 } else {
-                    write(1, ".", 1);
-                    if (dc > 64) dc = 0;
+                    write(1, dots + cdc, 1);
                 }
                 if (ts == 0) {
                     pp += 11;
@@ -280,11 +283,12 @@ int main(int argc, char * argv[])
         }
     }
     clock_gettime(CLOCK_REALTIME, &tv);
-    s_ms_s(buf, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
-    memcpy(buf + 11, "eof!\n", 5);
-    write(fd, buf, 16);
-    write(1, "\n", 1);
-    write(1, buf, 16);
+    s_ms_s(buf + 4, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
+    memcpy(buf + 15, "eof!\n", 5);
+    write(fd, buf + 4, 16);
+    buf[3] = '\n';
+    int l = snprintf(buf + 15, 32, "%d eof!\n", dc);
+    write(1, buf + 3, 12 + l);
     int wstatus;
     pid_t pid = wait(&wstatus);
     if (pid < 0) edie("wait");
