@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: between 2001 and 2006 too...
-# Last modified: Wed 08 Jan 2020 23:00:33 +0200 too
+# Last modified: Fri 27 Jan 2023 17:13:13 +0200 too
 
 case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
 case ${ZSH_VERSION-} in *.*) emulate ksh; esac
@@ -17,14 +17,14 @@ set -euf  # hint: zsh -x thisfile [args] to trace execution
 
 LANG=C LC_ALL=C; export LANG LC_ALL
 
-die () { printf %s\\n "$@"; exit 1; } >&2
+die () { printf %s\\n '' "$@" ''; exit 1; } >&2
 
 verbose=false assy=false
 while test $# -gt 0
 do case $1
 	in	-v|-x)	verbose=true
 	;;	-a)	assy=true
-	;;	-*)	die '' "'$1': unknown option" ''
+	;;	-*)	die "'$1': unknown option"
 	;;	*)	break
    esac
    shift
@@ -46,16 +46,19 @@ then
 	exec >&2
 	case $0 in /*) cn=${0##*/} ;; *) cn=$0 ;; esac
 	echo
-	echo Usage: $cn '[-v] [-a] [includes...] "oneliner"'
+	echo Usage: $cn "[-v] [-a] 'oneliner' [includes...]"
+	echo
+	echo '  -v: verbose (show code & compilation), -a: assembler dump'
 	echo
 	echo '  -lm is added to the linker options.'; v='#includes'
 	echo
-	echo "  Some $v are added based on the contents of the \"oneliner\"".
+	echo "  Some $v are added based on the contents of the 'oneliner'"
+	echo "  '.h's appended to $v if not there (i.e. string -> string.h)".
 	echo
 	echo "  Default compiler is 'gcc'. \$CC can be used to change that".
 	echo
 	echo Example:; v='gcc -std=c89'
-	echo "  CC='$v' $cn math 'int i = pow(10, 4); printf(\"%d\", i)'"
+	echo "  CC='$v' $cn 'int i = pow(10, 4); printf(\"%d\", i)' math"
 	echo
 	echo '  (pow() was not common enough for math.h to be auto-included.)'
 	echo
@@ -63,7 +66,7 @@ then
 fi
 
 umask 077
-tmp_oneliner_d=`exec mktemp -d`
+tmp_oneliner_d=`mktemp -d`
 trap "rm -rf $tmp_oneliner_d" 0 INT HUP TERM
 
 tmp_oneliner=$tmp_oneliner_d/oneliner
@@ -81,27 +84,29 @@ addi ()
 	echo "#include <$1>"
 }
 
-while test $# -gt 1
+ol=$1
+shift
+
+for arg
 do
-	case $1 in *.h) addi "$1"
-		;; *)	addi "$1.h"
+	case $1 in *.h) addi "$arg"
+		;; *)	addi "$arg.h"
 	esac
-	shift
 done
 
-case $1 in *printf*) addi 'stdio.h'
+case $ol in *printf*) addi 'stdio.h'
 esac
-case $1 in *strlen*) addi 'string.h'
+case $ol in *strlen*) addi 'string.h'
 esac
-
 #case $1 in **) addi ''
 #esac
 
-#echo 'int main(int argc, char ** argv)'
+case $ol in *'}' | *';' ) ;; *) ol="$ol;" ;; esac
+
+#echo 'int main(int argc, char ** argv)' \
 printf %s\\n \
-	'int main(void)' \
-	'{' \
-	"  $1;" \
+	'int main(void)' '{' \
+	"  $ol" \
 	'  return 0;' \
 	'}'
 
