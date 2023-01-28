@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: between 2001 and 2006 too...
-# Last modified: Fri 27 Jan 2023 17:13:13 +0200 too
+# Last modified: Sat 28 Jan 2023 10:24:09 +0200 too
 
 case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
 case ${ZSH_VERSION-} in *.*) emulate ksh; esac
@@ -30,7 +30,6 @@ do case $1
    shift
 done
 
-# undocumented strace "option"
 if test "${1-}" = strace
 then	pfxcmd=strace; shift
 else	pfxcmd=
@@ -46,16 +45,18 @@ then
 	exec >&2
 	case $0 in /*) cn=${0##*/} ;; *) cn=$0 ;; esac
 	echo
-	echo Usage: $cn "[-v] [-a] 'oneliner' [includes...]"
+	echo Usage: $cn "[-v] [-a] [strace] 'oneliner' [includes...]"
 	echo
-	echo '  -v: verbose (show code & compilation), -a: assembler dump'
+	echo "  '-v': verbose (show code & compilation), '-a': assembler dump".
 	echo
-	echo '  -lm is added to the linker options.'; v='#includes'
+	echo "  'strace': the built executable is run using strace(1)".
 	echo
-	echo "  Some $v are added based on the contents of the 'oneliner'"
-	echo "  '.h's appended to $v if not there (i.e. string -> string.h)".
+	echo '  "-lm" is added to the linker options.'; v='#includes'
 	echo
-	echo "  Default compiler is 'gcc'. \$CC can be used to change that".
+	echo "  Some $v are added based on the contents of the ''oneliner''".
+	echo '  ".h"s appended to'" $v if not there (i.e. string -> string.h)".
+	echo
+	echo '  Default compiler is "gcc". $CC can be used to change that'.
 	echo
 	echo Example:; v='gcc -std=c89'
 	echo "  CC='$v' $cn 'int i = pow(10, 4); printf(\"%d\", i)' math"
@@ -111,8 +112,6 @@ printf %s\\n \
 	'}'
 
 exec 1>&3 3>&-
-
-shift
 
 if $verbose
 then x cat $tmp_oneliner_c

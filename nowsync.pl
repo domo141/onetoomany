@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 16 May 2015 11:40:42 EEST too
-# Last modified: Wed 09 Nov 2022 20:19:25 +0200 too
+# Last modified: Thu 17 Nov 2022 18:51:21 +0200 too
 
 =encoding utf8
 
@@ -851,6 +851,7 @@ sub attrib_all($) {
 my $pevents = '';
 my ($time, $events, $name); # here for continue block visibility
 while (<P>) {
+    #my $excl = chkexcludes $name;... ja tyhjennä se inotify exclude
     ($time, $events, $path) = split ' ', $_, 3;
     my ($dir, $name) = split ' // ', $path;
     chomp $name;
