@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Thu 22 Dec 2022 22:17:29 +0200 too
+ * Last modified: Sun 05 Feb 2023 19:24:11 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -231,14 +231,16 @@ int main(int argc, char * argv[])
     clock_gettime(CLOCK_REALTIME, &start_tv);
     s_ms_s(buf, 0, start_tv.tv_nsec);
     write(fd, buf, 17);
-    write(1, buf, 16);
+    int l = snprintf(buf + 16, sizeof buf - 20,
+                     " (dot (.) per line, full log in '%s')", argv[1]);
+    write(1, buf, 16 + l);
     int ts = 1;
     int dc = 0;
     while (1) {
 #if !TEST
-        int l = read(0, buf + 11, BUFSIZE);
+        l = read(0, buf + 11, BUFSIZE);
 #else
-        int l = read(0, buf + 11, rndsiz());
+        l = read(0, buf + 11, rndsiz());
 #endif
         if (l <= 0) break;
         if (ts) {
@@ -287,7 +289,7 @@ int main(int argc, char * argv[])
     memcpy(buf + 15, "eof!\n", 5);
     write(fd, buf + 4, 16);
     buf[3] = '\n';
-    int l = snprintf(buf + 15, 32, "%d eof!\n", dc);
+    l = snprintf(buf + 15, 32, "%d eof!\n", dc);
     write(1, buf + 3, 12 + l);
     int wstatus;
     pid_t pid = wait(&wstatus);
