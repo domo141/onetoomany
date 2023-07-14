@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Wed 05 Oct 2022 20:53:20 +0300 too
+# Last modified: Fri 14 Jul 2023 23:46:48 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -22,14 +22,46 @@ die () { printf '%s\n' "$@"; exit 1; } >&2
 x () { printf '+ %s\n' "$*" >&2; "$@"; }
 x_exec () { printf '+ %s\n' "$*" >&2; exec "$@"; die "exec '$*' failed"; }
 
+test "${1-}" = g && { wo=true; shift; } || wo=false
+
+run ()
+{
+	if test $# = 2 && test "$2" = . -o "$2" = ..
+	then
+		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
+	fi
+	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
+	if $wo
+	then wo="-v /etc/localtime:/etc/localtime:ro"
+	     test "${DISPLAY-}" && {
+		wo="$wo -v /tmp/.X11-unix:/tmp/.X11-unix"
+		wo="$wo -e DISPLAY=$DISPLAY"
+	     }
+	     test "${WAYLAND_DISPLAY-}" && {
+		wo="$wo -v /run/user/`id -u`/bus:/tmp/bus"
+		wo="$wo -e DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/bus"
+		wo="$wo -e XDG_RUNTIME_DIR=/tmp"
+		wo="$wo -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/wayland-0"
+		wo="$wo -e WAYLAND_DISPLAY=/tmp/wayland-0"
+	     }
+	     wo="$wo --security-opt label=type:container_runtime_t"
+	else wo=
+	fi
+	x_exec podman run --pull=never --rm -it --privileged $wo \
+		--tmpfs /tmp --tmpfs /run \
+		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$@"
+	exit not reached
+}
+
 case ${1-}
 in '')
 	exec >&2; echo
-	echo "Usage: ${0##*/} [podman run options] or helper command"
+	echo "Usage: ${0##*/} [g] [podman run options] or helper command"
+	echo "  often just 'image' arg is enough to be given"
+	echo "  'g' as first arg: run options for graphical clients added"
 	echo '  helper commands:  r  i ia  l la  ps psa  e  mvtag  push and rmi'
 	echo '  also, the following podman(1) commands are passed through:'
 	echo '       tag  rm  history  inspect  pull  run  start  exec  stop'
-	echo '  echo; cat /run/.containerenv; echo; echo'
 	echo; exit 1
 
 ;; r | i | l | ia | la | ps | psa | e | mvtag | push | rmi )
@@ -38,16 +70,7 @@ in '')
 ;; tag | rm | history | inspect | pull | run | start | exec | stop )
 	x_exec podman "$@"
 
-;; -* | ??*:*? )
-	# run
-	if test $# = 2 && test "$2" = . -o "$2" = ..
-	then
-		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
-	fi
-	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
-	x_exec podman run --pull=never --rm -it --privileged \
-		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$@"
-	exit
+;; -* | ??*:*? ) run "$@"
 
 # no command, no options or no name:tag -- images for user convenience...
 ;; [1-9] | [1-9][0-9] | [1-9][0-9][0-9] )
@@ -80,18 +103,8 @@ cmd_r ()
 	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
 	image=`podman images --format='{{.Repository}}//{{.Tag}}' --noheading | sed -n -e 's|.*/\(.*\)//|\1:|' -e "\\|$1|{p;q;}"`
 	test "$image" || die "No image match for '$1'"
-
-	# copy-region-as-kill--yanked run above, just fastest to add this
-	if test $# = 2 && test "$2" = . -o "$2" = ..
-	then
-		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
-	fi
-	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
 	shift
-	x_exec podman run --pull=never --rm -it --privileged \
-		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$image" "$@"
-	exit
-
+	run $image "$@"
 }
 
 cmd_i ()
