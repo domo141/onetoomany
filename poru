@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Sat 15 Jul 2023 00:19:12 +0300 too
+# Last modified: Sat 05 Aug 2023 12:38:28 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -33,14 +33,14 @@ run ()
 	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
 	if $wo
 	then wo="-v /etc/localtime:/etc/localtime:ro --device /dev/dri"
+	     wo="$wo -v /run/user/`id -u`/bus:/tmp/bus"
+	     wo="$wo -e DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/bus"
+	     wo="$wo -e XDG_RUNTIME_DIR=/tmp"
 	     test "${DISPLAY-}" && {
 		wo="$wo -v /tmp/.X11-unix:/tmp/.X11-unix"
 		wo="$wo -e DISPLAY=$DISPLAY"
 	     }
 	     test "${WAYLAND_DISPLAY-}" && {
-		wo="$wo -v /run/user/`id -u`/bus:/tmp/bus"
-		wo="$wo -e DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/bus"
-		wo="$wo -e XDG_RUNTIME_DIR=/tmp"
 		wo="$wo -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/wayland-0"
 		wo="$wo -e WAYLAND_DISPLAY=/tmp/wayland-0"
 	     }
