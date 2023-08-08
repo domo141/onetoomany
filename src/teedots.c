@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Sun 05 Feb 2023 19:24:11 +0200 too
+ * Last modified: Tue 08 Aug 2023 17:22:16 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -242,10 +242,8 @@ int main(int argc, char * argv[])
 #else
         l = read(0, buf + 11, rndsiz());
 #endif
+        clock_gettime(CLOCK_REALTIME, &tv);
         if (l <= 0) break;
-        if (ts) {
-            clock_gettime(CLOCK_REALTIME, &tv);
-        }
         char *pp = buf, *p = buf + 11;
         int i = 0;
         while (i++ < l) {
@@ -284,7 +282,6 @@ int main(int argc, char * argv[])
             ts = 0;
         }
     }
-    clock_gettime(CLOCK_REALTIME, &tv);
     s_ms_s(buf + 4, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
     memcpy(buf + 15, "eof!\n", 5);
     write(fd, buf + 4, 16);
