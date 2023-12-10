@@ -121,6 +121,13 @@ reguest, and if the request can be fulfilled forwards data bidirectionally
 between endpoints (see also: https://en.wikipedia.org/wiki/HTTP_tunnel).
 
 
+=== link:src/ldpreload-mkdir-m777.c[ldpreload-mkdir-m777]
+
+Wraps mkdir(2) and mkdirat(2) system calls, replaces mode with 0777
+always. Useful in cases where there is need to give everyone read/write
+access to directories, and the commands creating those dirs don't have
+option for that.
+
 diff tools
 ----------
 
