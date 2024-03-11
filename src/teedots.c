@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Tue 08 Aug 2023 17:22:16 +0300 too
+ * Last modified: Mon 11 Mar 2024 19:45:15 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -209,30 +209,93 @@ static void s_ms_s(char * buf, time_t s, long ns)
     ns = ns / 1e6; buf[8] = '0' + ns % 10;
     ns = ns / 10;  buf[7] = '0' + ns % 10;
     ns = ns / 10;  buf[6] = '0' + ns;
- }
+}
+
+#define BUFSIZE 16384
+
+static char ** get_argv(int argc, char * argv[], char buf[static BUFSIZE + 12])
+{
+    char *argv1 = argv[1];
+    if (argv1[0] != '.' || (argv1[1] != '\0' && argv1[1] != ' ')) {
+        fprintf(stderr, "First arg '%s' is not '.'\n", argv1);
+        return NULL;
+    }
+    if (argv1[1] == '\0') {
+        if (argv[3] != NULL) return argv;
+        fprintf(stderr, "command [args] missing\n");
+        return NULL;
+    }
+    int ac = argc + 1;
+    char *p = &argv1[2]; /* argv1[1] == ' ' */
+    /* count args */
+    while (1) {
+        while (*p == ' ') p++;
+        if (*p++ == '\0') break;
+        ac++;
+        while (*p != ' ') {
+            if (*p == '\0') goto _break2;
+            p++;
+        }
+    }
+_break2:
+    if ((ulong)ac > (BUFSIZE - 32) / sizeof(char**) ) abort(); // unlikely
+    char ** av = (char **)buf; // we trust buf aligned...
+    av[0] = argv[0];
+    av[1] = argv[1];
+    int c = 2;
+    p = &argv1[2];
+    /* fill args */
+    while (1) {
+        while (*p == ' ') p++;
+        if (*p == '\0') break;
+        av[c++] = p++;
+        while (*p != ' ') {
+            if (*p == '\0') goto _break4;
+            p++;
+        }
+        *p++ = '\0';
+    }
+_break4:
+    for (int i = 2; i < argc; i++) {
+        av[c++] = argv[i];
+    }
+    av[c++] = NULL;
+#if 0
+    printf("%d %d %d\n", argc, ac, c);
+    for (int i = 0; i < ac; i++) printf("%d: %s\n", i, av[i]);
+    exit(0);
+#endif
+    return av;
+}
 
 int main(int argc, char * argv[])
 {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s ofile command [args]\n", argv[0]);
+        fprintf(stderr, "Usage: %s '.' ofile command [args]\n", argv[0]);
         return 1;
     }
-    int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
-    if (fd < 0) err(1, "cannot open file %s", argv[1]);
+    // get_argv() checks 3rd arg when needed //
+    char buf[BUFSIZE + 12];
+    argv = get_argv(argc, argv, buf);
+    if (argv == NULL) return 1;
+
+    int fd = open(argv[2], O_WRONLY|O_CREAT|O_TRUNC, 0644);
+    if (fd < 0) err(1, "cannot open file %s", argv[2]);
     ffd = fd;
-    tsmsgf("%s ...\n", argv[2]);
+    tsmsgf("%s ...\n", argv[3]);
     char dots[] = ".................................."
         "..................................";
-    run_command(argv + 2);
-#define BUFSIZE 16384
-    char buf[BUFSIZE + 12];
+    run_command(argv + 3);
+    const char * logfile = argv[2];
+#define argv argv_do_not_use_anymore
+    // get_argv() -returned argv may be clobbered after next line //
     memcpy(buf + 11, "start\n", 6);
     struct timespec start_tv, tv;
     clock_gettime(CLOCK_REALTIME, &start_tv);
     s_ms_s(buf, 0, start_tv.tv_nsec);
     write(fd, buf, 17);
     int l = snprintf(buf + 16, sizeof buf - 20,
-                     " (dot (.) per line, full log in '%s')", argv[1]);
+                     " (dot (.) per line, full log in '%s')", logfile);
     write(1, buf, 16 + l);
     int ts = 1;
     int dc = 0;
