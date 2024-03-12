@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Mon 11 Mar 2024 19:45:15 +0200 too
+ * Last modified: Tue 12 Mar 2024 07:48:50 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -225,7 +225,7 @@ static char ** get_argv(int argc, char * argv[], char buf[static BUFSIZE + 12])
         fprintf(stderr, "command [args] missing\n");
         return NULL;
     }
-    int ac = argc + 1;
+    int ac = 1;
     char *p = &argv1[2]; /* argv1[1] == ' ' */
     /* count args */
     while (1) {
@@ -238,6 +238,11 @@ static char ** get_argv(int argc, char * argv[], char buf[static BUFSIZE + 12])
         }
     }
 _break2:
+    if (ac < 3) {
+        fprintf(stderr, "(ofile and) command [initial-args] missing\n");
+        return NULL;
+    }
+    ac += argc;
     if ((ulong)ac > (BUFSIZE - 32) / sizeof(char**) ) abort(); // unlikely
     char ** av = (char **)buf; // we trust buf aligned...
     av[0] = argv[0];
