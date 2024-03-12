@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Tue 12 Mar 2024 07:48:50 +0200 too
+ * Last modified: Tue 12 Mar 2024 07:35:57 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -213,20 +213,11 @@ static void s_ms_s(char * buf, time_t s, long ns)
 
 #define BUFSIZE 16384
 
-static char ** get_argv(int argc, char * argv[], char buf[static BUFSIZE + 12])
+static char ** split_argv(int argc, char * argv[], char buf[static BUFSIZE])
 {
     char *argv1 = argv[1];
-    if (argv1[0] != '.' || (argv1[1] != '\0' && argv1[1] != ' ')) {
-        fprintf(stderr, "First arg '%s' is not '.'\n", argv1);
-        return NULL;
-    }
-    if (argv1[1] == '\0') {
-        if (argv[3] != NULL) return argv;
-        fprintf(stderr, "command [args] missing\n");
-        return NULL;
-    }
-    int ac = 1;
-    char *p = &argv1[2]; /* argv1[1] == ' ' */
+    int ac = 0;
+    char *p = argv1;
     /* count args */
     while (1) {
         while (*p == ' ') p++;
@@ -239,16 +230,15 @@ static char ** get_argv(int argc, char * argv[], char buf[static BUFSIZE + 12])
     }
 _break2:
     if (ac < 3) {
-        fprintf(stderr, "(ofile and) command [initial-args] missing\n");
+        fprintf(stderr, "((ofile,) '.' and) command [initial-args] missing\n");
         return NULL;
     }
     ac += argc;
     if ((ulong)ac > (BUFSIZE - 32) / sizeof(char**) ) abort(); // unlikely
     char ** av = (char **)buf; // we trust buf aligned...
     av[0] = argv[0];
-    av[1] = argv[1];
-    int c = 2;
-    p = &argv1[2];
+    int c = 1;
+    p = argv1;
     /* fill args */
     while (1) {
         while (*p == ' ') p++;
@@ -261,6 +251,10 @@ _break2:
         *p++ = '\0';
     }
 _break4:
+    if (av[2][0] != '.' || av[2][1] != '\0') {
+        fprintf(stderr, "2nd arg '%s' not '.'\n", av[2]);
+        return NULL;
+    }
     for (int i = 2; i < argc; i++) {
         av[c++] = argv[i];
     }
@@ -276,24 +270,31 @@ _break4:
 int main(int argc, char * argv[])
 {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s '.' ofile command [args]\n", argv[0]);
+        fprintf(stderr, "\nUsage: %s ofile '.' command [args]\n"
+                "or\n" "    #! %s ofile . command [initial args]\n\n"
+                "(latter in \"hashbang\" line)\n", argv[0], argv[0]);
         return 1;
     }
-    // get_argv() checks 3rd arg when needed //
     char buf[BUFSIZE + 12];
-    argv = get_argv(argc, argv, buf);
-    if (argv == NULL) return 1;
-
-    int fd = open(argv[2], O_WRONLY|O_CREAT|O_TRUNC, 0644);
-    if (fd < 0) err(1, "cannot open file %s", argv[2]);
+    if (argv[2][0] == '.' && argv[2][1] == '\0') {
+        if (argc == 3) {
+            fprintf(stderr, "command [args] missing\n");
+            return 1;
+        }
+    } else {
+        argv = split_argv(argc, argv, buf);
+        if (argv == NULL) return 1;
+    }
+    int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
+    if (fd < 0) err(1, "cannot open file %s", argv[1]);
     ffd = fd;
     tsmsgf("%s ...\n", argv[3]);
     char dots[] = ".................................."
         "..................................";
     run_command(argv + 3);
-    const char * logfile = argv[2];
+    const char * logfile = argv[1];
 #define argv argv_do_not_use_anymore
-    // get_argv() -returned argv may be clobbered after next line //
+    // split_argv() -returned argv is clobbered after next line //
     memcpy(buf + 11, "start\n", 6);
     struct timespec start_tv, tv;
     clock_gettime(CLOCK_REALTIME, &start_tv);
