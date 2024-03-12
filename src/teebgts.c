@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Tue 12 Mar 2024 07:27:24 +0200 too
+ * Last modified: Wed 13 Mar 2024 22:19:41 +0200 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -105,17 +105,23 @@
 // something needed with glibc headers...
 #define _DEFAULT_SOURCE // glibc >= 2.19
 #define _POSIX_C_SOURCE 200112L // for getaddrinfo() when glibc < 2.19
+#define _BSD_SOURCE // for SA_RESTART when glibc < 2.19
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <err.h>
+
+/* some compiler setups complain:  warning: ignoring return value of ‘write’,
+   declared with attribute warn_unused_result [-Wunused-result] */
+#define write (void)!write
 
 int ffd = -1;
 
@@ -139,6 +145,7 @@ static void tsmsgf(const char * fmt, ...) /* add __attribute__((...))) */
 
 #define edie(...) err(1, __VA_ARGS__)
 
+static pid_t cpid = -1;
 static void run_command(char * cmdl[])
 {
     int pipefd[2];
@@ -150,6 +157,7 @@ static void run_command(char * cmdl[])
         close(pipefd[1]);
         dup2(pipefd[0], 0);
         close(pipefd[0]);
+        cpid = pid;
         return;
     }
     /* child */
@@ -204,6 +212,23 @@ static void s_ms_s(char * buf, time_t s, long ns)
     ns = ns / 1e6; buf[8] = '0' + ns % 10;
     ns = ns / 10;  buf[7] = '0' + ns % 10;
     ns = ns / 10;  buf[6] = '0' + ns;
+}
+
+static void sigact(int sig, void (*handler)(int))
+{
+    struct sigaction action;
+
+    memset(&action, 0, sizeof action);
+    action.sa_handler = handler;
+    action.sa_flags = SA_RESTART|SA_NOCLDSTOP; /* NOCLDSTOP needed if ptraced */
+    sigemptyset(&action.sa_mask);
+    sigaction(sig, &action, NULL);
+}
+
+static void signaled(int sig)
+{
+    fprintf(stderr, "Got signal %d. Sending to %d...\n", sig, cpid);
+    kill(cpid, sig);
 }
 
 #define BUFSIZE 16384
@@ -262,10 +287,6 @@ _break4:
     return av;
 }
 
-/* some compiler setups complain:  warning: ignoring return value of ‘write’,
-   declared with attribute warn_unused_result [-Wunused-result] */
-#define write (void)!write
-
 int main(int argc, char * argv[])
 {
     if (argc < 3) {
@@ -288,9 +309,12 @@ int main(int argc, char * argv[])
     if (fd < 0) err(1, "cannot open file %s", argv[1]);
     ffd = fd;
     tsmsgf("%s ...\n", argv[3]);
+    /* note: no SIGCHLD handling, expects final EOF from child fd */
+    sigact(SIGINT, signaled);
+    sigact(SIGTERM, signaled);
     run_command(argv + 3);
 #define argv argv_do_not_use_anymore
-    // split_argv() -returned argv is clobbered after next line //
+    /* split_argv() -returned argv is clobbered after next line */
     memcpy(buf + 11, "start\n", 6);
     struct timespec start_tv, tv;
     clock_gettime(CLOCK_REALTIME, &start_tv);
