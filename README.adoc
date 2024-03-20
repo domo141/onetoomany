@@ -94,16 +94,22 @@ calculates widht and height and catches editing errors before one tries
 to view the final image.
 
 
-=== link:sfv[sfv]
+=== link:xpm-remap-to-bmp.pl[xpm-remap-to-bmp]
 
-Manage versions of a file in a +{filename},sfv+ file. The file format for
-+,sfv+ file is 'ar(5)' and the original file is never modified by this tool.
+Remap colors of an xpm file and write a bmp file. The use case here
+is partial transparencies due to 8-bit alpha channel available.
 
 
 === link:xpm-to-braille.pl[xpm-to-braille]
 
 Convert 2-color xpm file to utf8 text of braille characters. One braille
 character in 0x2800-0x29ff range presents 2x4 pixels of the xpm image.
+
+
+=== link:sfv[sfv]
+
+Manage versions of a file in a +{filename},sfv+ file. The file format for
++,sfv+ file is 'ar(5)' and the original file is never modified by this tool.
 
 
 === link:ipv6llchat.pl[ipv6llchat.pl] (prototype)
