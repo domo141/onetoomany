@@ -3,7 +3,7 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Wed 26 May 2021 18:43:56 +0300 too
+# Last modified: Mon 22 Apr 2024 21:45:23 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -70,7 +70,14 @@ die "'tcpdump' not found (in \$PATH)\n" unless which 'tcpdump';
 
 # parts from https://stackoverflow.com/questions/4101219/how-can-i-find-the-ip-addresses-for-each-interface-in-perl
 #use Socket;
-require 'sys/ioctl.ph'; # cd /usr/include; sudo h2ph -r .
+require 'sys/ioctl.ph'; # cd /usr/include; sudo h2ph -r '.'
+
+# ...or use "hardcoded" values, do e.g. c code to print these out and verfy
+# -- grep -r 'SIOCGIF[AN]' /usr/include may also work
+# sub PF_INET () { 2 }
+# sub SOCK_STREAM () { 1 }
+# sub SIOCGIFADDR () { 0x8915 }
+# sub SIOCGIFNETMASK () { 0x891b }
 
 my ($localip, $localmask);
 
@@ -179,10 +186,12 @@ while (1)
 	    $xid =~ s/^0x//;
 	}
 	# DHCP-Message Option 53, length 1: Discover/Request
-	elsif (/^\s*DHCP-Message Option 53,\s.*?(\S+)\s*$/) {
+	# ... or DHCP-Message (53), ...
+	elsif (/^\s*DHCP-Message .*\b53\b.*?(\S+)\s*$/) {
 	    $op = $1;
 	}
-	elsif (/^\s*END Option 255/) {
+	# END Option 255, ... or like above
+	elsif (/^\s*END .*\b255\b/) {
 	    send_message;
 	    ($chaddr, $xid, $op) = ('', '', '');
 	}
