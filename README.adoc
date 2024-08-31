@@ -76,6 +76,13 @@ Uses tcpdump(8) to bypass firewall for reading DHCP traffic.
 
 === link:src/simplecom.c[simplecom]
 
+[NOTE]
+====
+this was done due to `minicom(1)` being frustrating to use, now there is also
+`picocom(1)`, which may be (even) more user friendly(?) -- if so, this still
+provides a base for some (semi?)automation tools doing serial communication
+====
+
 Very simple serial port communication program. Sets bit rate 115200, 8N1,
 and without hardware flow control. This setup works usually out of the box.
 
@@ -133,6 +140,7 @@ Wraps mkdir(2) and mkdirat(2) system calls, replaces mode with 0777
 always. Useful in cases where there is need to give everyone read/write
 access to directories, and the commands creating those dirs don't have
 option for that.
+
 
 diff tools
 ----------
@@ -210,6 +218,13 @@ other developer tools
 "One line" of C code given from command line compiled in +main()+ and
 then executed (by default). Useful for quickly testing simple things.
 
+
+=== link:src/opts%2d%2dlong.c[sample opts--long.c]
+
+Sample code to do `getopt_long(3)` style argument parsing. Code to be
+included (partially verbatim, rest editable) within a C program source.
+The last 100 lines of code in this "Unlicense"d file shows comprehensive
+example of the features in this (extendable) implementation.
 
 server setups
 -------------
