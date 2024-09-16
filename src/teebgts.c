@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Wed 13 Mar 2024 22:19:41 +0200 too
+ * Last modified: Mon 16 Sep 2024 19:34:21 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -271,8 +271,9 @@ _break2:
         *p++ = '\0';
     }
 _break4:
-    if (av[2][0] != '.' || av[2][1] != '\0') {
-        fprintf(stderr, "2nd arg '%s' not '.'\n", av[2]);
+    if (av[2][0] != '.' || (av[2][1] != '\0' &&
+                            (av[2][1] != '.' || av[2][2] != '\0'))) {
+        fprintf(stderr, "2nd arg '%s' not '.|..'\n", av[2]);
         return NULL;
     }
     for (int i = 2; i < argc; i++) {
@@ -290,13 +291,14 @@ _break4:
 int main(int argc, char * argv[])
 {
     if (argc < 3) {
-        fprintf(stderr, "\nUsage: %s ofile '.' command [args]\n"
-                "or\n" "    #! %s ofile . command [initial args]\n\n"
+        fprintf(stderr, "\nUsage: %s ofile (.|..) command [args]\n"
+                "or\n" "    #! %s ofile (.|..) command [initial args]\n\n"
                 "(latter in \"hashbang\" line)\n", argv[0], argv[0]);
         return 1;
     }
     char buf[BUFSIZE + 12];
-    if (argv[2][0] == '.' && argv[2][1] == '\0') {
+    if (argv[2][0] == '.' && (argv[2][1] == '\0' ||
+                              (argv[2][1] == '.' && argv[2][2] == '\0'))) {
         if (argc == 3) {
             fprintf(stderr, "command [args] missing\n");
             return 1;
@@ -308,10 +310,18 @@ int main(int argc, char * argv[])
     int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
     if (fd < 0) err(1, "cannot open file %s", argv[1]);
     ffd = fd;
-    tsmsgf("%s ...\n", argv[3]);
     /* note: no SIGCHLD handling, expects final EOF from child fd */
     sigact(SIGINT, signaled);
     sigact(SIGTERM, signaled);
+    if (argv[2][1] == '.')
+    {   // wait until (near) next sec
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec = 0;
+        ts.tv_nsec = 1000000000 - ts.tv_nsec;
+        nanosleep(&ts, NULL);
+    }
+    tsmsgf("%s ...\n", argv[3]);
     run_command(argv + 3);
 #define argv argv_do_not_use_anymore
     /* split_argv() -returned argv is clobbered after next line */
