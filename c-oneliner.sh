@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: between 2001 and 2006 too...
-# Last modified: Sat 28 Jan 2023 10:24:09 +0200 too
+# Last modified: Sun 03 Nov 2024 12:16:55 +0200 too
 
 case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
 case ${ZSH_VERSION-} in *.*) emulate ksh; esac
@@ -45,7 +45,7 @@ then
 	exec >&2
 	case $0 in /*) cn=${0##*/} ;; *) cn=$0 ;; esac
 	echo
-	echo Usage: $cn "[-v] [-a] [strace] 'oneliner' [includes...]"
+	echo Usage: $cn "[-v] [-a] [strace] 'oneliner' [-opts] [includes...]"
 	echo
 	echo "  '-v': verbose (show code & compilation), '-a': assembler dump".
 	echo
@@ -53,7 +53,9 @@ then
 	echo
 	echo '  "-lm" is added to the linker options.'; v='#includes'
 	echo
-	echo "  Some $v are added based on the contents of the ''oneliner''".
+	echo "  More compiler options, starting with '-' may be given."
+	echo
+	echo "  Some $v are added based on the contents of the 'oneliner'".
 	echo '  ".h"s appended to'" $v if not there (i.e. string -> string.h)".
 	echo
 	echo '  Default compiler is "gcc". $CC can be used to change that'.
@@ -88,9 +90,12 @@ addi ()
 ol=$1
 shift
 
+opts=
+
 for arg
 do
-	case $1 in *.h) addi "$arg"
+	case $1 in -*)  opts=$opts\ $arg
+		;; *.h) addi "$arg"
 		;; *)	addi "$arg.h"
 	esac
 done
@@ -119,10 +124,10 @@ fi
 
 if $assy
 then
-	x ${CC:-gcc} -S -o $tmp_oneliner $tmp_oneliner_c
+	x ${CC:-gcc} $opts -S -o $tmp_oneliner $tmp_oneliner_c
 	x cat $tmp_oneliner
 else
-	x ${CC:-gcc} -o $tmp_oneliner $tmp_oneliner_c -lm
+	x ${CC:-gcc} $opts -o $tmp_oneliner $tmp_oneliner_c -lm
 	x $pfxcmd $tmp_oneliner "$@" # well, no args...
 fi
 
