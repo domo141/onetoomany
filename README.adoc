@@ -42,6 +42,16 @@ created it launches sshfs(1) to the host where filesystem is to be
 mounted and sftp-server(8) to the host which provides the filesystem.
 
 
+=== link:redir-1-2-if-same-as-0.sh[redir-1-2-if-same-as-0.sh]
+
+Uses gdb(1) to (attempt to) redirect fds 1 (stdout) and 2 (stderr) of a
+process ({pid}) to a file if all three, 1 (stdin), 2 and 3 are pointing to
+the same file.
+
+With this requirement (all three same) the script provides option to
+restore all three to same (by using gdb to dub fd 0 (back) to fd 1 and fd2.
+
+
 middle ground
 -------------
 
