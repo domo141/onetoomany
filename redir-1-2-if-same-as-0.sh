@@ -6,12 +6,15 @@
 #	    All rights reserved
 #
 # Created: Mon 03 Dec 2024 18:31:39 EET too
-# Last modified: Wed 18 Dec 2024 23:29:28 +0200 too
+# Last modified: Thu 19 Dec 2024 00:00:00 +0200 too
 #
 # Ideas from:
 # https://stackoverflow.com/questions/593724/
 # redirect-stderr-stdout-of-a-process-after-its-been-started-using-command-lin/
 # 3834605#3834605
+
+case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
+case ${ZSH_VERSION-} in *.*) emulate ksh; esac
 
 set -euf
 
@@ -53,14 +56,6 @@ then
 fi
 # else #
 
-printf gcc:\ ; command -v gcc || die "'gcc': command not found (but see $0)"
-
-# gcc is needed to get value of O_RDWR|O_CREAT|O_APPEND, if gcc did not exist,
-# one could use e.g. the perl(1)/python(1) oneliners instead (see below),
-# or any other tool that can be used to determine the values of
-# O_RDWR, O_CREAT and O_APPEND (or guess all linux resolve to '1090' (0x442)...
-# as this most probably work on modern linuxes only...)
-
 test /proc/$1/fd/0 -ef /proc/$1/fd/1 || {
 	p=/proc/$1/fd
 	die "stdin: '`readlink $p/0`' not same as stdout: '`readlink $p/1`'"
@@ -78,24 +73,19 @@ test -e "$fn" && test ! -f "$fn" && die "'$fn' exists but is not a file"
 # ensure that /path/ there exists
 : >> "$fn"
 
-# perl -le 'use POSIX; print O_RDWR|O_CREAT|O_APPEND' ;: or
-# python -c 'import os; print(os.O_RDWR|os.O_CREAT|os.O_APPEND)'
-# would do, but if gdb is installed, gcc is more likely, too...
-# -- ok, some text-file-busys w/ later kernel
-# -- and tmpfs could be noexec, so outcommenting...
-#td=`mktemp`
-#exec 9<>$td || { unlink $td; exit 1; }
-#unlink $td
-#unset td
-
-#printf %s\\n '#include <fcntl.h>' '#include <stdio.h>' 'int main(void) {' \
-#	'printf("%d", O_RDWR|O_CREAT|O_APPEND); return 0; }' \
-#	| gcc -pipe -xc -o /dev/fd/9 -
-#ls -l /dev/fd/9
-#rwca=`ld.so /dev/fd/9`
-#exec 9>&-
-# ... and
-rwca=`perl -le 'use POSIX; print O_RDWR|O_CREAT|O_APPEND'`
+# at first, gcc(1) was used to build program to get the value of
+# O_RDWR | O_CREAT | O_APPEND, but then, "complexity" arrived where
+# to, and how to write that temporary prog (text file busy/noexec fs)
+# so:
+if command -v perl >/dev/null
+then
+	rwca=`perl -le 'use POSIX; print O_RDWR|O_CREAT|O_APPEND'`
+elif command -v python3 >/dev/null
+then
+	rwca=`python3 -c 'import os; print(os.O_RDWR|os.O_CREAT|os.O_APPEND)'`
+else
+	die "Neither perl(1) nor python3(1) command found"
+fi
 #echo $rwca
 
 td=`mktemp`
