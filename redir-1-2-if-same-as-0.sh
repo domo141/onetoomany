@@ -6,7 +6,7 @@
 #	    All rights reserved
 #
 # Created: Mon 03 Dec 2024 18:31:39 EET too
-# Last modified: Wed 18 Dec 2024 22:00:31 +0200 too
+# Last modified: Wed 18 Dec 2024 23:29:28 +0200 too
 #
 # Ideas from:
 # https://stackoverflow.com/questions/593724/
@@ -45,10 +45,10 @@ then
 	exec 9<>$td || { unlink $td; exit 1; }
 	unlink $td
 	unset td
-	printf %s\\n >&9 'set scheduler-locking on'
+	printf %s\\n >&9 'set scheduler-locking on' \
 		'call (int)dup2(0, 1)' 'call (int)dup2(0, 2)' q
 	cat /dev/fd/9
-	exec gdb -p $1 -x /dev/fd/9 </dev/null
+	exec gdb -p $1 -batch -x /dev/fd/9 </dev/null
 	exit not reached
 fi
 # else #
@@ -81,16 +81,21 @@ test -e "$fn" && test ! -f "$fn" && die "'$fn' exists but is not a file"
 # perl -le 'use POSIX; print O_RDWR|O_CREAT|O_APPEND' ;: or
 # python -c 'import os; print(os.O_RDWR|os.O_CREAT|os.O_APPEND)'
 # would do, but if gdb is installed, gcc is more likely, too...
-td=`mktemp`
-exec 9<>$td || { unlink $td; exit 1; }
-unlink $td
-unset td
+# -- ok, some text-file-busys w/ later kernel
+# -- and tmpfs could be noexec, so outcommenting...
+#td=`mktemp`
+#exec 9<>$td || { unlink $td; exit 1; }
+#unlink $td
+#unset td
 
-printf %s\\n '#include <fcntl.h>' '#include <stdio.h>' 'int main(void) {' \
-       'printf("%d", O_RDWR|O_CREAT|O_APPEND); return 0; }' \
-	| gcc -pipe -xc -o /dev/fd/9 -
-rwca=`/dev/fd/9`
-exec 9>&-
+#printf %s\\n '#include <fcntl.h>' '#include <stdio.h>' 'int main(void) {' \
+#	'printf("%d", O_RDWR|O_CREAT|O_APPEND); return 0; }' \
+#	| gcc -pipe -xc -o /dev/fd/9 -
+#ls -l /dev/fd/9
+#rwca=`ld.so /dev/fd/9`
+#exec 9>&-
+# ... and
+rwca=`perl -le 'use POSIX; print O_RDWR|O_CREAT|O_APPEND'`
 #echo $rwca
 
 td=`mktemp`
@@ -109,4 +114,4 @@ q
 "
 cat /dev/fd/9
 exec \
-gdb -p $1 -x /dev/fd/9 </dev/null
+gdb -p $1 -batch -x /dev/fd/9 </dev/null
