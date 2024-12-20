@@ -6,12 +6,14 @@
 #	    All rights reserved
 #
 # Created: Mon 03 Dec 2024 18:31:39 EET too
-# Last modified: Thu 19 Dec 2024 00:00:00 +0200 too
+# Last modified: Fri 20 Dec 2024 20:52:15 +0200 too
 #
 # Ideas from:
 # https://stackoverflow.com/questions/593724/
 # redirect-stderr-stdout-of-a-process-after-its-been-started-using-command-lin/
 # 3834605#3834605
+#
+# SPDX-License-Identifier: BSD-2-Clause
 
 case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
 case ${ZSH_VERSION-} in *.*) emulate ksh; esac
@@ -22,12 +24,15 @@ die () { printf '%s\n' '' "$@" ''; exit 1; } >&2
 
 test $# = 2 || test $# = 1 || die "Usage: ${0##*/} {pid} [file|'!']" "\
 
-Redirect stdout and stderr to 'file' if both of those are same as stdin.
-The 'sameness' is required in this script so that those can later be
-restored with the '!' option.
+Redirect stdout and stderr of a running process to 'file' if both of those
+are same as stdin. The 'sameness' is required in this script so that those
+can later be restored with the '!' option.
 The restore option '!' cannot do similar checks as the other usage, so
 better check first by running with one arg: ${0##*/} {pid}
-: Try it; $0 \$\$"
+
+: Try it; $0 \$\$
+
+gdb(1) is used to attach to the process to do the redirections."
 
 case $1 in '') die "Arg 1 (pid) empty"
 	;; *[!0-9]*) die "Non-digit chars in '$1'"
