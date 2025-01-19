@@ -3,7 +3,7 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Mon 22 Apr 2024 21:45:23 +0300 too
+# Last modified: Sun 19 Jan 2025 21:17:14 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -15,12 +15,13 @@ use IO::Socket::INET;
 use Net::DHCP::Packet;
 use Net::DHCP::Constants;
 
-# fedora: perl-Net-DHCP
+# fedora: perl-Net-DHCP and perl-ph
 # debian: libnet-dhcp-perl
 
 # netstat -nul
 # ss -nul
 # ifconfig / ip addr
+# \or nmcli device modify $ ipv4.method manual ipv4.{addresses,gateway,dns} ...
 
 $ENV{PATH} = '/sbin:/usr/sbin:/bin:/usr/bin';
 
@@ -68,9 +69,10 @@ unless ($ifconfig) {
 die "'tcpdump' not found (in \$PATH)\n" unless which 'tcpdump';
 
 
-# parts from https://stackoverflow.com/questions/4101219/how-can-i-find-the-ip-addresses-for-each-interface-in-perl
+# parts from https://stackoverflow.com/questions/4101219
+#	/how-can-i-find-the-ip-addresses-for-each-interface-in-perl
 #use Socket;
-require 'sys/ioctl.ph'; # cd /usr/include; sudo h2ph -r '.'
+require 'sys/ioctl.ph'; # cd /usr/include; sudo h2ph -r . (if no perl-ph or so)
 
 # ...or use "hardcoded" values, do e.g. c code to print these out and verfy
 # -- grep -r 'SIOCGIF[AN]' /usr/include may also work
@@ -186,7 +188,7 @@ while (1)
 	    $xid =~ s/^0x//;
 	}
 	# DHCP-Message Option 53, length 1: Discover/Request
-	# ... or DHCP-Message (53), ...
+	# DHCP-Message (53), length 1: Discover/Request
 	elsif (/^\s*DHCP-Message .*\b53\b.*?(\S+)\s*$/) {
 	    $op = $1;
 	}
