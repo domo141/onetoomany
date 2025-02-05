@@ -8,11 +8,12 @@
 #	    All rights reserved
 #
 # Created: Mon 14 Jun 2021 22:11:24 EEST too
-# Last modified: Thu 04 Nov 2021 19:00:06 +0200 too
+# Last modified: Wed 05 Feb 2025 22:07:40 +0200 too
 
 # "tunneled diff": create tdiff tunnel (e.g. using ssh),
-# at one tunnel endpoint execute tdiff file1 file1 -- diff
-# to be executed (graphically?) on the other tunnel endpoint
+# like: 1$ tdiff.pl . xxdiff ssh {remote} tdiff.pl
+# then: r$ tdiff.pl {file1} {file2} ;: at {remote} host
+# -- diff to be executed (graphically?) on '1$' tunnel endpoint
 
 use 5.8.1;
 use strict;
@@ -31,8 +32,8 @@ BEGIN {
       "  (1. $bn0 . 'diff-cmdline' tunnel-cmdline)" if @ARGV < 2;
 }
 
-# Q. Why is this so clumsy?
-# A. The trick is to use Perl's strengths rather than its weaknesses.
+# "Q. Why is this so clumsy?"
+# "A. The trick is to use Perl's strengths rather than its weaknesses."
 
 # I.e. iterate until it works! That's fun!
 
@@ -69,12 +70,17 @@ BEGIN {
     sub writefile($$)
     {
 	xread_to__ \*S, $_[1];
-	my $of = "$_[0]-new";
-	print "writing '$of', $_[1] bytes\n";
+	my $sfx = sprintf '%x', time;
+	my $of = "$_[0]-n$sfx";
+	print "writing '$_[0]', $_[1] bytes\n";
 	open O, '>', $of or _die "Opening for write failed: $!";
 	print O $_ or _die "Write failed: $!";
 	close O or _die "Write failed: $!";
-	chmod 0755, "$_[0]-new" if -x "$_[0]"
+	my $mtime = (stat $_[0])[9];
+	chmod 0755, $of if -x _;
+	$sfx = sprintf '%x', $mtime if $mtime > 1234567890;
+	rename $_[0], "$_[0]-o$sfx";
+	rename $of, $_[0];
     }
 
     if ($ARGV[0] ne '.')
