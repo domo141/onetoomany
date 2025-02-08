@@ -9,7 +9,7 @@
 #
 # Created: Wed 24 Jun 2015 11:30:49 EEST too
 # 1st version: Thu 25 Jun 2015 14:06:54 +0300 too
-# Last modified: Sun 05 Jun 2016 23:09:38 +0300 too
+# Last modified: Sat 08 Feb 2025 12:17:12 +0200 too
 
 # commit versions to ,sfv file without editing the original
 # file format: *ar(5)*, with 'sfv.<num>.logN' and 'sfv.<num>.file' entries
@@ -22,8 +22,6 @@ use strict;
 use warnings;
 
 use File::Temp qw/ tempdir /;
-
-$ENV{'PATH'} = '/sbin:/usr/sbin:/bin:/usr/bin';
 
 my $n = (ord $0 == 47)? ( ($0 =~ /([^\/]+)$/), $1 ): $0;
 my $cmd;
@@ -93,11 +91,23 @@ sub log () ## show commit logs
     do_log $ARGV[0];
 }
 
+sub do_ls($);
+sub ls () ## list *,sfv files in dir or oneliners of a file
+{
+    die "Usage: $n $cmd (dir | file)\n" unless @ARGV == 1;
+    if (-d $ARGV[0]) {
+	print "$_\n" for (<*,sfv>);
+	exit
+    }
+    do_ls $ARGV[0];
+}
+
+
 my %ch = qw/com commit comm commit commi commit commit commit
 	    dif diff diff diff
 	    cat cat
-	    log log/;
-#	    ls ls/;
+	    log log
+	    ls ls/;
 
 sub xopenI($) {
     open I, '<', $_[0] or die "Cannot open $_[0] for reading: $!\n";
@@ -336,6 +346,24 @@ sub do_log($)
 	xsysreadI $dbuf, 60;
 	($ver, $secs, $len) = arhdr $dbuf, 1;
 	print "file date: ", scalar localtime $secs, "\n", $buf, "\n";
+	my $l = $len + ($len & 1);
+	xsysreadI $buf, $l;
+    }
+}
+
+sub do_ls($)
+{
+    open_sfvfile $_[0];
+    my $buf;
+    while (sysread(I, $buf, 60) == 60) {
+	my ($ver, $secs, $len) = arhdr $buf, 0;
+	xsysreadI $buf, $len;
+	chomp ($buf = (split "\n--\n", $buf)[1]);
+	printf "%3d %s %-48.48s\n", $ver, scalar localtime $secs, $buf;
+	xsysreadI $buf, 1 if $len & 1;
+
+	xsysreadI $buf, 60;
+	($ver, $secs, $len) = arhdr $buf, 1;
 	my $l = $len + ($len & 1);
 	xsysreadI $buf, $l;
     }
