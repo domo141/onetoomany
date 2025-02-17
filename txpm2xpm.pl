@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Fri 07 May 2021 21:21:03 EEST too
-# Last modified: Sat 22 May 2021 17:50:13 +0300 too
+# Last modified: Mon 17 Feb 2025 17:52:20 +0200 too
 
 # Help at the end of this file.
 
@@ -54,8 +54,11 @@ foreach (@ARGV) {
     $colors = chr(0);
     @pix = ();
     $fname = $_;
-    s/[.][^.]+$//;
-    $oname = $_ .'.xpm' unless $oname;
+    if ($oname eq '') {
+	# basename & suffix after last . (or e.g. '.foo' if .../.foo)
+	s|^(?:.*/)? (.+?) (?:[.][^.]*)? $ |$1|x;
+	$oname = $_ . '.xpm'
+    }
 
     while (<I>) {
 	last if /^\s*::\s+txpm\s+::\s/;
