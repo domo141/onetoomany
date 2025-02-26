@@ -229,6 +229,13 @@ other developer tools
 then executed (by default). Useful for quickly testing simple things.
 
 
+=== link:builtin-types-compatible.sh[builtin-types-compatible.sh]
+
+Given a C type as argument, attempts to match it with several integer
+and floating point types using (gcc) __builtin_types_compatible_p()
+to match. Prints out signedness, size and match if found, of a type.
+
+
 === link:src/opts%2d%2dlong.c[sample opts--long.c]
 
 Sample code to do `getopt_long(3)` style argument parsing. Code to be
