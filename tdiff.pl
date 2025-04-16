@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Mon 14 Jun 2021 22:11:24 EEST too
-# Last modified: Wed 05 Feb 2025 22:07:40 +0200 too
+# Last modified: Fri 21 Mar 2025 21:35:40 +0200 too
 
 # "tunneled diff": create tdiff tunnel (e.g. using ssh),
 # like: 1$ tdiff.pl . xxdiff ssh {remote} tdiff.pl
@@ -28,8 +28,11 @@ my $bn0;
 BEGIN {
     $bn0 = $0; $bn0 =~ s,.*/,,;
     #_die "Usage: $bn0 [options] file1 file2 [file3]\n",
-    _die "Usage: $bn0 [options] file1 file2\n",
-      "  (1. $bn0 . 'diff-cmdline' tunnel-cmdline)" if @ARGV < 2;
+
+    _die "\nUsage: $bn0 [options] file1 file2\n\n",
+      " (1st: $bn0 . 'diff-cmdline' tunnel-cmdline\n",
+      "  e.g. $bn0 . 'xxdiff' ssh ... tdiff.pl)"
+      if @ARGV < 2;
 }
 
 # "Q. Why is this so clumsy?"
