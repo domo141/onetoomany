@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Mon 16 Sep 2024 19:34:21 +0300 too
+ * Last modified: Thu 17 Apr 2025 23:51:00 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -293,7 +293,10 @@ int main(int argc, char * argv[])
     if (argc < 3) {
         fprintf(stderr, "\nUsage: %s ofile (.|..) command [args]\n"
                 "or\n" "    #! %s ofile (.|..) command [initial args]\n\n"
-                "(latter in \"hashbang\" line)\n", argv[0], argv[0]);
+                "(latter in \"hashbang\" line)\n\n"
+                "With '.' as 2nd arg, execution is started immediately,\n"
+                "with '..', sleep until next second before start...\n\n"
+                , argv[0], argv[0]);
         return 1;
     }
     char buf[BUFSIZE + 12];
