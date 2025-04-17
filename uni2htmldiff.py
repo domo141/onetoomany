@@ -8,49 +8,35 @@
 #           All rights reserved
 #
 # Created: Wed 25 Mar 2015 23:15:33 EET too
-# Last modified: Mon 27 Apr 2015 20:21:56 +0300 too
+# Last python2: Mon 27 Apr 2015 20:21:56 +0300 too
+# Python3.6+: Thu 17 Apr 2025 13:15:29 +0300 too
+# Last modified: Thu 17 Apr 2025 23:34:48 +0300 too
 
 """Create html page (side-by-side tables) from unified diff input."""
-# Tested to work on (some installations of) python 2.6.6 and python 3.3.2.
+
 # Todo: Color themes (pre-defined and user-definable (or just let users edit)).
 
 # This software can be accessed or otherwise used by the terms and conditions
 # described in PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2. NO WARRANTY!
 
-from __future__ import print_function
-from __future__ import unicode_literals
+# ruff: noqa: E701, E702, E741
 
 from difflib import Differ
 from getopt import getopt, GetoptError
-import codecs
 import sys
 import os
 import re
 
-# pylint: disable=unnecessary-pass
-# pylint: disable=missing-docstring
-# pylint: disable=multiple-statements
-# pylint: disable=invalid-name
 
-
-class Die(Exception):
-    def __init__(self, *_list):
-        print(_list[0].format(*_list[1:]), file=sys.stderr)
-        raise SystemExit(1)  # 'raise' for one less 'pass'
-    pass
-
-
-def warn(*_list):
-    print(_list[0].format(*_list[1:]), file=sys.stderr)
+def warn(t):
+    print(t, file=sys.stderr)
     pass
 
 
 # global "variables" put in a class; no objects instantiated...
 class G:
-    version = '1.1'
-    verdate = '2015-04-27'
-    from_encoding = None
-    to_encoding = None
+    version = '1.2'
+    verdate = '2025-04-17'
     tabsize = None
     outfile = None
     title = None
@@ -62,14 +48,13 @@ def yield_lines(files):
     for fn in files:
         #fnr = 0
         if fn == '-':
-            try: fh = open(0, 'rb')  # python3
-            except: fh = sys.stdin   # python2
+            fh = sys.stdin
         else:
-            fh = open(fn, 'rb')
+            fh = open(fn, 'r')
             pass
         for line in fh:
             #fnr = fnr + 1; print(fnr)
-            yield line.decode(G.from_encoding, 'replace')
+            yield line
             pass
         if fn != '-':
             fh.close()
@@ -91,11 +76,11 @@ def he(txt):
 
 
 def tdcls(cls, txt):
-    return '<td class="{0}">{1}</td>'.format(cls, txt)
+    return f'<td class="{cls}">{txt}</td>'
 
 
 def span(cls, txt):
-    return '' if txt == '' else '<span class="{0}">{1}</span>'.format(cls, txt)
+    return '' if txt == '' else f'<span class="{cls}">{txt}</span>'
 
 
 def onec(clsref, bclsref, txt):
@@ -182,8 +167,7 @@ def xcompare(old, new, lines):
 
 
 def print_tr(ln, ltd, rn, rtd):
-    print('<tr><td class="h">{0}</td>{1}'
-          '<td class="h">{2}</td>{3}</tr>'.format(ln, ltd, rn, rtd))
+    print(f'<tr><td class="h">{ln}</td>{ltd}<td class="h">{rn}</td>{rtd}</tr>')
     pass
 
 
@@ -268,7 +252,8 @@ def dodiff(old, new, ln):
                 wlines.append(mxc(lc0, line, clines[2]))
                 next(gen)
                 continue
-            raise Die("Internal Error(1): line '{0}' (next0: {1})", line, lc20)
+            raise SystemExit(
+                f"Internal Error(1): line '{line}' (next0: {lc20})")
         if lc0 == '+':
             if clines[2][0] == '?':
                 output_both(wlines.pop(0), mxc(lc0, line, clines[2]), ln)
@@ -281,15 +266,15 @@ def dodiff(old, new, ln):
             output_both(wlines.pop(0) if wlines else None,
                         onec(lc0, lc0, line), ln)
             continue
-        raise Die("Internal Error(2): line '{0}' (next0 {1})", line, lc20)
+        raise SystemExit(f"Internal Error(2): line '{line}' (next0 {lc20})")
     drain_wlines(wlines, ln)
     pass
 
 
 diffline_set = set((' ', '-', '+', '@'))
 def print_addrem(gtlt, pm3, cls, name, gen):
-    print('<p><span class="{3}"><b><tt>{0} {1}'
-          ' {2} {1}</tt></b></span></p>'.format(gtlt, pm3, he(name), cls))
+    print(f'<p><span class="{cls}"><b><tt>{gtlt} {pm3}'
+          ' {he(name)} {pm3}</tt></b></span></p>')
     for line in gen:
         if line[0] not in diffline_set:
             break
@@ -297,15 +282,15 @@ def print_addrem(gtlt, pm3, cls, name, gen):
     pass
 
 
-def print_table(left, right):
-    print('''<table cellspacing="0" cellpadding="0" rules="groups">
-<thead><tr><th></th><th>{0}</th><th></th><th>{1}</th></tr></thead>
-<tbody>'''.format(he(left), he(right)))
+def print_table(lft, rght):
+    print(f'''<table cellspacing="0" cellpadding="0" rules="groups">
+<thead><tr><th></th><th>{he(lft)}</th><th></th><th>{he(rght)}</th></tr></thead>
+<tbody>''')
     pass
 
 
 def print_hh(txt):
-    print('<tr><td colspan="4" class="i">{0}</td></tr>'.format(he(txt)))
+    print(f'<tr><td colspan="4" class="i">{he(txt)}</td></tr>')
     pass
 
 tab_re = re.compile(r'\t')
@@ -330,24 +315,24 @@ def diff_loop(gen, ln):
     old = []; new = []
     for line in gen:
         if line[0] == ' ':
-            #warn("both: {0}", line)
+            #warn(f"both: {line}")
             line = xtab(line[1:])
             old.append(line)
             new.append(line)
         elif line[0] == '-':
-            #warn("old: {0}", line)
+            #warn(f"old: {line}")
             line = xtab(line[1:])
             old.append(line)
         elif line[0] == '+':
-            #warn("new: {0}", line)
+            #warn(f"new: {line}")
             line = xtab(line[1:])
             new.append(line)
         elif line[0] == '@':
-            #warn("next: {0}", line)
+            #warn(f"next: {line}")
             dodiff(old, new, ln)
             m = diff_re.match(line)  # e.g.  @@ -118,7 +118,7 @@
             if not m:
-                warn("line '{0}' does not match '@@ +n,n -n,n...'", line)
+                warn(f"line '{line}' does not match '@@ +n,n -n,n...'")
                 ln = [ -99, -99 ]
             else:
                 ln = [ int(m.group(1)), int(m.group(2)) ]
@@ -356,7 +341,7 @@ def diff_loop(gen, ln):
             print_hh(line.rstrip())
             old = []; new = []
         else:
-            #warn("end: {0}", line)
+            #warn(f"end: {line}")
             dodiff(old, new, ln)
             break
         pass
@@ -374,18 +359,18 @@ def uni2htmldiff(files):
             left = fn_re.match(left).group(1)  # this allows fn trailing spaces
             right = next(gen)
             if not right.startswith("+++ "):
-                warn("line '{0}' does not start with '+++ '", right)
+                warn(f"line '{right}' does not start with '+++ '")
                 continue
             #warn(right)
             right = fn_re.match(right).group(1)
             rns = next(gen)
             if not rns.startswith("@@ "):
-                warn("line '{0}' does not start with '@@ '", rns)
+                warn(f"line '{rns}' does not start with '@@ '")
                 continue
             #warn(rns)
             m = diff_re.match(rns)  # e.g.  @@ -118,7 +118,7 @@
             if not m:
-                warn("line '{0}' does not match '@@ +n,n -n,n...'", rns)
+                warn(f"line '{rns}' does not match '@@ +n,n -n,n...'")
                 continue
             ln = [ int(m.group(1)), int(m.group(2)) ]
             if G.addrem:
@@ -409,69 +394,68 @@ def check_files(files):
     _set = set()
     for fn in files:
         if fn in _set:
-            raise Die("File '{0}' seen already", fn)
+            raise SystemExit(f"File '{fn}' seen already")
         _set.add(fn)
         if fn != '-' and not os.path.isfile(fn):
-            raise Die("'{0}': no such file", fn)
+            raise SystemExit(f"'{fn}': no such file")
         pass
     pass
 
 
 def output_htmlhead():
-    print('''<!DOCTYPE html>
+    print(f'''<!DOCTYPE html>
 <html>
 <head>
-<meta charset="%s"/>
-<title>%s</title>
+<meta charset="utf-8"/>
+<title>{he(G.title)}</title>
 <style>
-table { font-family: Courier;  font-size: 9pt;  line-height: 1.0;
+table {{ font-family: Courier;  font-size: 9pt;  line-height: 1.0;
         border: inset 3px;  color: #000000;
-        margin-top: 1em;  margin-bottom: 1em; }
-hr { display: block;
+        margin-top: 1em;  margin-bottom: 1em;
+}}
+hr {{ display: block;
      margin-top: 2px;  margin-bottom: 0px;
      margin-left: 0px;  margin-right: 0px;
-     border-style: solid black;  border-width: 1px; }
-p { margin: 3px; }
-th { background-color: #bbbbbb;  padding-top: 1px;  padding-bottom: 2px; }
-td { padding: 0px 1px; white-space: pre; }
-.h { background-color: #cccccc;  text-align: right; }
-.i { background-color: #cccccc;  text-align: center; padding-bottom: 2px; }
-.p { background-color: #ffffff; }
-.n { background-color: #eeeeee; }
-.a { background-color: #aaffaa; }
-.b { background-color: #e8ffe8; }
-.c { background-color: #ffff77; }
-.s { background-color: #ffaaaa; }
-.t { background-color: #ffe8e8; }
+     border-style: solid black;  border-width: 1px;
+}}
+p {{ margin: 3px; }}
+th {{ background-color: #bbbbbb;  padding-top: 1px;  padding-bottom: 2px; }}
+td {{ padding: 0px 1px; white-space: pre; }}
+.h {{ background-color: #cccccc;  text-align: right; }}
+.i {{ background-color: #cccccc;  text-align: center; padding-bottom: 2px; }}
+.p {{ background-color: #ffffff; }}
+.n {{ background-color: #eeeeee; }}
+.a {{ background-color: #aaffaa; }}
+.b {{ background-color: #e8ffe8; }}
+.c {{ background-color: #ffff77; }}
+.s {{ background-color: #ffaaaa; }}
+.t {{ background-color: #ffe8e8; }}
 </style>
 </head>
-<body>''' % (G.to_encoding, he(G.title)))
+<body>''')
     pass
 
 
 def usage():
     import textwrap
     sys.stdout = sys.stderr
-    print(textwrap.fill('Usage: {0} [-f_encoding] [-t_encoding] '
-                        '[-o_file] [-T_title] [-x_tabsize] [-B] '
-                        'linewidth (diff-file|-)...'.format(sys.argv[0]),
+    print(textwrap.fill(f'Usage: {sys.argv[0]}'
+                        '[-o_file] [-t_title] [-x_tabsize] [-B] '
+                        'linewidth (diff-file|-)...',
                         75, subsequent_indent=' ' * 10,
                         break_on_hyphens=False).replace('_', ' '))
 
-    print("""
-Options:
-    -f encoding  input encoding (default UTF-8)
-    -t encoding  output encoding (default UTF-8)
-    -o file      output file (default standard output)
-    -t title     title of html document (default 'd i f f')
-    -x tabsize   size of tab in characters (default 8)
+    print("""Options:
+    -o file      output file (default: standard output)
+    -t title     title of html document (default: 'd i f f')
+    -x tabsize   size of tab in characters (default: 8)
 
     -B  suppress diff when full file is added or removed
 
     linewidth  characters per line before wrapping
-    diff-file  input file(s) (when file is -, read standard input)
-
-{0} {1}  {2}""".format(sys.argv[0], G.version, G.verdate))
+    diff-file  input file(s) (when file is '-', read standard input)
+""")
+    print(sys.argv[0], G.version, '', G.verdate)
     raise SystemExit(1)
 
 
@@ -479,30 +463,27 @@ def getnumber(s):
     try:
         return int(s)
     except ValueError:
-        raise Die("'{0}': not a number", s)
+        raise SystemExit(f"'{s}': not a number")
     pass
 
 
 def setgopt(name, value, opt):
     if getattr(G, name, None) is not None:
-        raise Die("you may not specify '{0}' more than once", opt)
+        raise SystemExit(f"'{opt}' may be specified only once")
     setattr(G, name, value)
     pass
 
 
 if __name__ == '__main__':
     try:
+        # (old) code from 2015 - but works - should be in fn() but so not #
         opts, args = getopt(sys.argv[1:], "f:t:o:T:x:Bh")
     except GetoptError as e:
-        raise Die('{0}', e)
+        raise SystemExit(f'{e}')
     for o, a in opts:
-        if   o == '-f':
-            setgopt('from_encoding', a, o)
-        elif o == '-t':
-            setgopt('to_encoding', a, o)
-        elif o == '-o':
+        if o == '-o':
             setgopt('outfile', a, o)
-        elif o == '-T':
+        elif o == '-t':
             setgopt('title', a, o)
         elif o == '-x':
             setgopt('tabsize', a, o)
@@ -511,7 +492,7 @@ if __name__ == '__main__':
         elif o == '-h':
             args = []
         else:
-            raise Die("internal error: '{0}': option not handled", o)
+            raise SystemExit(f"internal error: '{o}': option not handled")
         pass
 
     if len(args) < 2:
@@ -520,15 +501,13 @@ if __name__ == '__main__':
 
     G.linewidth = getnumber(args.pop(0))
     if G.linewidth < 10 or G.linewidth > 9999:
-        raise Die("'{0}': value not between 10 and 9999", G.linewidth)
+        raise SystemExit(f"'{G.linewidth}': value not between 10 and 9999")
 
-    if G.from_encoding is None:  G.from_encoding = 'UTF-8'
-    if G.to_encoding is None:    G.to_encoding = 'UTF-8'
     if G.outfile is None:
-        sys.stdout = codecs.getwriter(G.to_encoding)(sys.stdout, 'replace')
-    else:
-        sys.stdout = codecs.open(G.outfile, "w", G.to_encoding, 'replace')
         G.outfile = '(stdout)'
+        pass
+    else:
+        sys.stdout = open(G.outfile, "w")
         pass
     if G.title is None: G.title = 'd i f f'
 
@@ -537,8 +516,8 @@ if __name__ == '__main__':
     else:
         G.tabsize = getnumber(G.tabsize)
         if G.tabsize < 1 or G.tabsize >= G.linewidth:
-            raise Die("'{0}': value not between 1 and {1}",
-                      G.tabsize, G.linewidth - 1)
+            raise SystemExit(
+                f"'{G.tabsize}': value not between 1 and {G.linewidth - 1}")
         pass
 
     check_files(args)
