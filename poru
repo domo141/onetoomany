@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Sat 05 Aug 2023 12:38:28 +0300 too
+# Last modified: Wed 23 Apr 2025 23:00:24 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -102,7 +102,7 @@ cmd_r ()
 	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading --filter=reference="$1" | sed q`
 	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
 	image=`podman images --format='{{.Repository}}//{{.Tag}}' --noheading | sed -n -e 's|.*/\(.*\)//|\1:|' -e "\\|$1|{p;q;}"`
-	test "$image" || die "No image match for '$1'"
+	test "$image" || die "${0##*/}: No image match for '$1'"
 	shift
 	run $image "$@"
 }
@@ -111,9 +111,9 @@ cmd_i ()
 {
 	# note: before podman 1.8.1 .Created worked instead of .CreatedSince
 	# also: some older systems cannot handle $e = ... in the template
-	echo ' IMAGE ID        CREATED      SIZE    REPOSITORY:TAG'
+	echo ' IMAGE ID      CREATED      SIZE    REPOSITORY:TAG'
 	#_images '{{.ID}} {{printf "%12.12s %8s" .CreatedSince .Size}} {{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' "$@"
-	_images '{{.ID}}  {{printf "%12.12s %8s" .CreatedSince .Size}} //{{.Repository}}//{{.Tag}}' 's|//.*/\(.*\)//| \1:|' "$@"
+	_images '{{.ID}}  {{index (split .CreatedAt " ") 0}} {{printf "%8s" .Size}} //{{.Repository}}//{{.Tag}}' 's|//.*/\(.*\)//| \1:|' "$@"
 }
 
 cmd_l ()
