@@ -8,14 +8,14 @@
 #	    All rights reserved
 #
 # Created: between 2001 and 2006 too...
-# Last modified: Sun 03 Nov 2024 12:16:55 +0200 too
+# Last modified: Mon 19 May 2025 22:50:51 +0300 too
 
 case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
 case ${ZSH_VERSION-} in *.*) emulate ksh; esac
 
 set -euf  # hint: zsh -x thisfile [args] to trace execution
 
-LANG=C LC_ALL=C; export LANG LC_ALL
+#LANG=C LC_ALL=C; export LANG LC_ALL
 
 die () { printf %s\\n '' "$@" ''; exit 1; } >&2
 
@@ -30,10 +30,9 @@ do case $1
    shift
 done
 
-if test "${1-}" = strace
-then	pfxcmd=strace; shift
-else	pfxcmd=
-fi
+case ${1-} in strace | ltrace ) pfxcmd=$1; shift
+	;; *) pfxcmd=
+esac
 
 if $verbose
 then	x () { printf '+ %s\n' "$*" >&2; "$@"; }
@@ -45,11 +44,12 @@ then
 	exec >&2
 	case $0 in /*) cn=${0##*/} ;; *) cn=$0 ;; esac
 	echo
-	echo Usage: $cn "[-v] [-a] [strace] 'oneliner' [-opts] [includes...]"
+	echo Usage: $cn "[-v] [-a] [[sl]trace] 'oneliner' [-opts] [includes...]"
 	echo
 	echo "  '-v': verbose (show code & compilation), '-a': assembler dump".
 	echo
 	echo "  'strace': the built executable is run using strace(1)".
+	echo "  'ltrace': the built executable is run using ltrace(1)".
 	echo
 	echo '  "-lm" is added to the linker options.'; v='#includes'
 	echo
