@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Thu 17 Apr 2025 23:51:00 +0300 too
+ * Last modified: Thu 26 Jun 2025 21:40:25 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -106,6 +106,7 @@
 #define _DEFAULT_SOURCE // glibc >= 2.19
 #define _POSIX_C_SOURCE 200112L // for getaddrinfo() when glibc < 2.19
 #define _BSD_SOURCE // for SA_RESTART when glibc < 2.19
+#define _XOPEN_SOURCE 700 // for O_CLOEXEC (when _POSIX_C_SOURCE doesn't cover)
 
 #include <unistd.h>
 #include <stdio.h>
@@ -310,7 +311,7 @@ int main(int argc, char * argv[])
         argv = split_argv(argc, argv, buf);
         if (argv == NULL) return 1;
     }
-    int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
+    int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0644);
     if (fd < 0) err(1, "cannot open file %s", argv[1]);
     ffd = fd;
     /* note: no SIGCHLD handling, expects final EOF from child fd */
