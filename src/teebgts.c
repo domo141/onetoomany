@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Thu 26 Jun 2025 21:40:25 +0300 too
+ * Last modified: Sat 05 Jul 2025 22:29:44 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -137,7 +137,10 @@ static void tsmsgf(const char * fmt, ...) /* add __attribute__((...))) */
                      tm->tm_hour, tm->tm_min, tm->tm_sec, tv.tv_nsec);
     va_list ap;
     va_start(ap, fmt);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
     l = l + vsnprintf(buf + l, sizeof buf - l, fmt, ap);
+#pragma GCC diagnostic pop
     va_end(ap);
     if (l >= (int)sizeof buf) l = (int)sizeof buf - 1;
     write(ffd, buf, l);
@@ -162,6 +165,8 @@ static void run_command(char * cmdl[])
         return;
     }
     /* child */
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
     close(pipefd[0]);
     dup2(pipefd[1], 1);
     dup2(1, 2);
@@ -256,7 +261,10 @@ _break2:
     }
     ac += argc;
     if ((ulong)ac > (BUFSIZE - 32) / sizeof(char**) ) abort(); // unlikely
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
     char ** av = (char **)buf; // we trust buf aligned...
+#pragma GCC diagnostic pop
     av[0] = argv[0];
     int c = 1;
     p = argv1;
@@ -314,9 +322,6 @@ int main(int argc, char * argv[])
     int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0644);
     if (fd < 0) err(1, "cannot open file %s", argv[1]);
     ffd = fd;
-    /* note: no SIGCHLD handling, expects final EOF from child fd */
-    sigact(SIGINT, signaled);
-    sigact(SIGTERM, signaled);
     if (argv[2][1] == '.')
     {   // wait until (near) next sec
         struct timespec ts;
@@ -325,9 +330,14 @@ int main(int argc, char * argv[])
         ts.tv_nsec = 1000000000 - ts.tv_nsec;
         nanosleep(&ts, NULL);
     }
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTERM, SIG_IGN);
     tsmsgf("%s ...\n", argv[3]);
     run_command(argv + 3);
 #define argv argv_do_not_use_anymore
+    /* note: no SIGCHLD handling, expects final EOF from child fd */
+    sigact(SIGINT, signaled);
+    sigact(SIGTERM, signaled);
     /* split_argv() -returned argv is clobbered after next line */
     memcpy(buf + 11, "start\n", 6);
     struct timespec start_tv, tv;
