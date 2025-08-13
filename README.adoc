@@ -75,6 +75,13 @@ Simplest usage command line is +nowsync.pl . remotehost:remotedir+
 which copies local current directory (tree) to 'remotedir' at 'remotehost'.
 
 
+=== link:rcli.pl[rcli.pl]
+
+Interactive local client to communicate with remote part of the same program.
+
+Directory listing, file copying, to name a few - with command line completion.
+
+
 === link:dhcphaxd.pl[dhcphaxd.pl]
 
 Offer fixed IP address to any DHCP client making a request. Very useful for
