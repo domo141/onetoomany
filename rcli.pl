@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sun 26 May 2024 12:49:11 EEST too
-# Last modified: Tue 18 Jun 2024 22:24:40 +0300 too
+# Last modified: Thu 28 Aug 2025 22:01:12 +0300 too
 
 ### code-too-remote ###
 use 5.8.1;
@@ -38,7 +38,13 @@ $0 =~ s:.*/::, die "\nUsage: $0 [.] remote-cmdline [[path/to/]perl]
 
 When first arg is '.', 'perl' if appended to the args (so you don't have to)
 
-Like: $0 . ssh user\@host  (execute  $0 perl - -  ;: to try locally)\n
+Like: $0 . ssh user\@host  (execute  $0 perl - -  ;: to try locally)
+
+This may also be useful:
+      dt2\$ ssh -R 4444:127.0.0.1:4444 [user\@]host ;: if needed
+      dt1\$ socat [-d2] tcp4-listen:4444,reuseaddr exec:perl
+      cli\$ rcli.pl socat stdio tcp4-connect:127.1:4444
+(#args: ", scalar @ARGV, " < 3)
 " if @ARGV < 3;
 
 shift, push @ARGV, 'perl' if $ARGV[0] eq '.';
