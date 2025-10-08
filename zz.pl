@@ -14,7 +14,7 @@
 # Author: Tomi Ollila -- too ät iki piste fi
 #
 # Created: Sun 08 Sep 2019 17:40:28 EEST too
-# Last modified: Thu 26 Aug 2021 15:19:49 +0300 too
+# Last modified: Wed 08 Oct 2025 22:10:30 +0300 too
 
 # lacks some features but is good enough.
 
@@ -74,18 +74,19 @@ set_tsvars;
 
 $SIG{INT} = $SIG{HUP} = $SIG{TERM} = $SIG{QUIT} = sub { exit };
 
+my $emsg;
+END {
+    return unless defined $emsg;
+    ReadMode 0;
+    print '.',"\033[?1049l","\033[23;0;0;t"; # tput -Txterm rmcup | od -a
+    print $emsg if $emsg;
+    undef $emsg
+}
+$emsg = '';
 ReadMode 3;
 print "\033[?1049h","\033[22;0;0;t"; # tput -Txterm smcup | od -a
 
-my $endsub;
-$endsub = sub {
-    ReadMode 0;
-    print '.',"\033[?1049l","\033[23;0;0;t"; # tput -Txterm rmcup | od -a
-    undef $endsub
-};
-END { &$endsub if defined $endsub }
-
-$SIG{__DIE__} = sub { &$endsub };
+$SIG{__DIE__} = sub { $emsg = $_[0] };
 
 sub refresh();
 
