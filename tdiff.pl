@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Mon 14 Jun 2021 22:11:24 EEST too
-# Last modified: Fri 21 Mar 2025 21:35:40 +0200 too
+# Last modified: Tue 21 Oct 2025 17:35:53 +0300 too
 
 # "tunneled diff": create tdiff tunnel (e.g. using ssh),
 # like: 1$ tdiff.pl . xxdiff ssh {remote} tdiff.pl
@@ -30,8 +30,9 @@ BEGIN {
     #_die "Usage: $bn0 [options] file1 file2 [file3]\n",
 
     _die "\nUsage: $bn0 [options] file1 file2\n\n",
-      " (1st: $bn0 . 'diff-cmdline' tunnel-cmdline\n",
-      "  e.g. $bn0 . 'xxdiff' ssh ... tdiff.pl)"
+      " (1st: $bn0 (.|..) 'diff-cmdline' tunnel-cmdline\n",
+      "  e.g. $bn0 . 'xxdiff' ssh ... tdiff.pl\n",
+      "   or $bn0 .. 'xxdiff' ssh ...)"
       if @ARGV < 2;
 }
 
@@ -86,7 +87,7 @@ BEGIN {
 	rename $of, $_[0];
     }
 
-    if ($ARGV[0] ne '.')
+    if ($ARGV[0] ne '.' and $ARGV[0] ne '..')
     {
 	my @opts;
 	while (@ARGV && $ARGV[0] =~ /^-(.)(.*)/) {
@@ -207,6 +208,8 @@ if ($ARGV[1] eq 'l:sten') {
 _die "No tunnel cmdline!" unless @ARGV > 2;
 
 my @diffc = split ' ', $ARGV[1];
+push @ARGV, 'tdiff.pl' if $ARGV[0] eq '..';
+print "diff cmdline: @diffc ...\n";
 splice @ARGV, 0, 2;
 socketpair S, C, PF_UNIX, SOCK_STREAM, 0 or _die "socketpair: $!";
 if (fork == 0) {
@@ -220,6 +223,7 @@ if (fork == 0) {
     die "Executing @ARGV failed: $!"
 }
 # parent
+select undef, undef, undef, 0.001; # just to context switch for logging order
 close C;
 $c = 'c';
 select((select(S), $| = 1)[$[]);
