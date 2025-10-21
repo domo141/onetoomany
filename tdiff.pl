@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Mon 14 Jun 2021 22:11:24 EEST too
-# Last modified: Tue 21 Oct 2025 17:35:53 +0300 too
+# Last modified: Tue 21 Oct 2025 22:15:12 +0300 too
 
 # "tunneled diff": create tdiff tunnel (e.g. using ssh),
 # like: 1$ tdiff.pl . xxdiff ssh {remote} tdiff.pl
@@ -167,9 +167,9 @@ if ($ARGV[1] eq 'l:sten') {
     bind SS, $addr or _die "Cannot bind $sockpath: $!";
     listen SS, 5;
     syswrite STDOUT, $ident;
-    print "s: waiting 'tdiff-1' response from c\n";
+    print qq's: waiting for "tdiff-1" response from c\n';
     sysread STDIN, $_, 32;
-    _die "s: did not get tdiff-1...from c" unless $_ eq $ident;
+    _die qq's: did not get "tdiff-1" response from c' unless $_ eq $ident;
     print "s: response ok -- ready to receive diff content from $bn0\n";
     my ($cin, $sin) = (0, fileno(SS));
     my $in = ''; vec($in, $cin, 1) = 1; vec($in, $sin, 1) = 1;
@@ -209,7 +209,7 @@ _die "No tunnel cmdline!" unless @ARGV > 2;
 
 my @diffc = split ' ', $ARGV[1];
 push @ARGV, 'tdiff.pl' if $ARGV[0] eq '..';
-print "diff cmdline: @diffc ...\n";
+print "Diff cmdline: @diffc {f1} {f2}\n";
 splice @ARGV, 0, 2;
 socketpair S, C, PF_UNIX, SOCK_STREAM, 0 or _die "socketpair: $!";
 if (fork == 0) {
@@ -218,19 +218,22 @@ if (fork == 0) {
     open STDIN, '<&', \*C or _die "Redirecting stdin: $!";
     open STDOUT, '>&', \*C or _die "Redirecting stdout: $!";
     $ENV{LC_ALL} = $ENV{LANG} = 'C';
-    print "c: executing @ARGV ...\n";
+    print "Executing @ARGV\n";
+    no warnings;
     exec @ARGV, '.', 'l:sten';
-    die "Executing @ARGV failed: $!"
+    print STDERR "'@ARGV' failed: $!\n";
+    print "s: EOF\n";
+    exit 1
 }
 # parent
-select undef, undef, undef, 0.001; # just to context switch for logging order
 close C;
 $c = 'c';
 select((select(S), $| = 1)[$[]);
 syswrite S, $ident;
-print "c: waiting 'tdiff-1' response from s\n";
+select undef, undef, undef, 0.001; # just to context switch for logging order
+print qq'c: waiting for "tdiff-1" response from s\n';
 sysread S, $_, 32;
-_die "c: did not get tdiff-1... from s" unless $_ eq $ident;
+_die qq'c: did not get "tdiff-1" response from s' unless $_ eq $ident;
 print "c: response ok -- ready to receive diff content from s\n";
 
 my $tdir = $ENV{XDG_RUNTIME_DIR} || "/tmp"; # /tmp if undefined or empty
