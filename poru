@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Wed 23 Apr 2025 23:00:24 +0300 too
+# Last modified: Thu 06 Nov 2025 20:06:05 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -32,17 +32,17 @@ run ()
 	fi
 	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
 	if $wo
-	then wo="-v /etc/localtime:/etc/localtime:ro --device /dev/dri"
-	     wo="$wo -v /run/user/`id -u`/bus:/tmp/bus"
-	     wo="$wo -e DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/bus"
-	     wo="$wo -e XDG_RUNTIME_DIR=/tmp"
+	then xrtd=${XDG_RUNTIME_DIR:-/run/user/`id -u`}
+	     wo="-v /etc/localtime:/etc/localtime:ro --device /dev/dri"
+	     wo="$wo -v $xrtd:$xrtd"
+	     wo="$wo -e XDG_RUNTIME_DIR=$xrtd"
+	     wo="$wo -e DBUS_SESSION_BUS_ADDRESS=unix:path=$xrtd/bus"
 	     test "${DISPLAY-}" && {
-		wo="$wo -v /tmp/.X11-unix:/tmp/.X11-unix"
+		wo="$wo -v /tmp/.X11-unix:/tmp/.X11-unix:ro"
 		wo="$wo -e DISPLAY=$DISPLAY"
 	     }
 	     test "${WAYLAND_DISPLAY-}" && {
-		wo="$wo -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/wayland-0"
-		wo="$wo -e WAYLAND_DISPLAY=/tmp/wayland-0"
+		wo="$wo -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
 	     }
 	     wo="$wo --security-opt label=type:container_runtime_t"
 	else wo=
@@ -58,16 +58,18 @@ in '')
 	exec >&2; echo
 	echo "Usage: ${0##*/} [g] [podman run options] or helper command"
 	echo "  often just 'image' arg is enough to be given"
-	echo "  'g' as first arg: run options for graphical clients added"
+	echo "  'g' as first arg: XDG_RUNTIME_DIR and *DISPLAYs are" \
+		"passed for GUI clients"
 	echo '  helper commands:  r  i ia  l la  ps psa  e  mvtag  push and rmi'
 	echo '  also, the following podman(1) commands are passed through:'
-	echo '       tag  rm  history  inspect  pull  run  start  exec  stop'
+	echo '      tag  rm  history  inspect  pull  run  start  exec' \
+		" stop  and  commit"
 	echo; exit 1
 
 ;; r | i | l | ia | la | ps | psa | e | mvtag | push | rmi )
 	cmd=$1
 
-;; tag | rm | history | inspect | pull | run | start | exec | stop )
+;; tag | rm | history | inspect | pull | run | start | exec | stop | commit )
 	x_exec podman "$@"
 
 ;; -* | ??*:*? ) run "$@"
