@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Thu 06 Nov 2025 20:06:05 +0200 too
+# Last modified: Thu 06 Nov 2025 20:28:25 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -17,20 +17,52 @@ case ${ZSH_VERSION-} in *.*) emulate ksh; esac
 
 set -euf  # hint: sh -x thisfile [args] to trace execution
 
-die () { printf '%s\n' "$@"; exit 1; } >&2
+die () { printf '%s\n' '' "$@" ''; exit 1; } >&2
 
 x () { printf '+ %s\n' "$*" >&2; "$@"; }
 x_exec () { printf '+ %s\n' "$*" >&2; exec "$@"; die "exec '$*' failed"; }
 
-test "${1-}" = g && { wo=true; shift; } || wo=false
+wo=false
+rm=--rm
+case ${1-} in '' | *[!gk]*)
+;; *) # else #
+	case $1 in *g*) wo=true; esac
+	case $1 in *k*) rm=; esac
+	shift
+esac
+
+test $# = 0 && {
+	exec >&2; echo
+	echo "Usage: ${0##*/} [gk] [podman run options] or helper command"
+	echo "  often just 'image' arg is enough to be given"
+	echo "  'g' in first arg: XDG_RUNTIME_DIR and *DISPLAYs are" \
+		"passed for GUI clients"
+	echo "  'k' in first arg: keep container around after exit"
+	echo '  commands:  r  i ia  l la  ps psa  e  s  mvtag  push and rmi'
+	echo '  the following podman(1) commands are passed through:'
+	echo '    tag  rm  history  inspect  pull  run  start  exec' \
+		" stop  &  commit"
+	echo
+	exit 1
+}
 
 run ()
 {
-	if test $# = 2 && test "$2" = . -o "$2" = ..
+	ci=$1; shift
+	case $ci in /*/)
+		case $ci in *'|'*) die "'|' in '$ci'"; esac
+		image=${ci#/} image=${image%/}
+		#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading --filter=reference="$1" | sed q`
+		#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
+		image=`podman images --format='{{.Repository}}//{{.Tag}}' --noheading | sed -n -e 's|.*/\(.*\)//|\1:|' -e "\\|$image|{p;q;}"`
+		test "$image" || die "${0##*/}: No image match for '$ci'"
+		ci=$image
+	esac
+	if test $# = 1 && test "$1" = . -o "$1" = ..
 	then
-		test $2 = . && set -- "$1" /bin/bash || set -- "$1" /bin/zsh
+		test $1 = . && set -- /bin/bash || set -- /bin/zsh
 	fi
-	case $PWD in $HOME*) xv= ;; *) xv=$PWD:$PWD ;; esac
+	case $PWD/ in $HOME/*) xv= ;; *) xv=$PWD:$PWD ;; esac
 	if $wo
 	then xrtd=${XDG_RUNTIME_DIR:-/run/user/`id -u`}
 	     wo="-v /etc/localtime:/etc/localtime:ro --device /dev/dri"
@@ -47,37 +79,32 @@ run ()
 	     wo="$wo --security-opt label=type:container_runtime_t"
 	else wo=
 	fi
-	x_exec podman run --pull=never --rm -it --privileged $wo \
+	x_exec podman run --pull=never $rm -it --privileged $wo \
 		--tmpfs /tmp --tmpfs /run \
-		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$@"
+		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$ci" "$@"
 	exit not reached
 }
 
-case ${1-}
-in '')
-	exec >&2; echo
-	echo "Usage: ${0##*/} [g] [podman run options] or helper command"
-	echo "  often just 'image' arg is enough to be given"
-	echo "  'g' as first arg: XDG_RUNTIME_DIR and *DISPLAYs are" \
-		"passed for GUI clients"
-	echo '  helper commands:  r  i ia  l la  ps psa  e  mvtag  push and rmi'
-	echo '  also, the following podman(1) commands are passed through:'
-	echo '      tag  rm  history  inspect  pull  run  start  exec' \
-		" stop  and  commit"
-	echo; exit 1
+case $1
 
-;; r | i | l | ia | la | ps | psa | e | mvtag | push | rmi )
+in i | l | ia | la | ps | psa | e | s | mvtag | push | rmi )
 	cmd=$1
 
 ;; tag | rm | history | inspect | pull | run | start | exec | stop | commit )
 	x_exec podman "$@"
 
-;; -* | ??*:*? ) run "$@"
+# -opt?, /image-re/, image:tag or at least 12-char image id
+;; -* | /*/ | ??*:*? | [0-9a-f][0-9a-f]????*???[0-9a-f][0-9a-f][0-9a-f])
+	run "$@"
 
 # no command, no options or no name:tag -- images for user convenience...
 ;; [1-9] | [1-9][0-9] | [1-9][0-9][0-9] )
 	echo "Newest $1 images:"
 	cmd=i; set -- i $1
+
+;; *[!A-Za-z0-9:.,-]*)
+	die "'$1': Suspicious image name substring"
+
 ;; *)	echo "Images matching '$1':"
 	cmd=i; set -- i $1
 esac
@@ -95,18 +122,6 @@ _images () {
 	;;		*)    $pi_f "$f" | sed -n ${s:+-e "$s"} -e "\\| .*$1|p"
 	esac
 	echo
-}
-
-cmd_r ()
-{
-	test $# != 0 || die "Usage: ${0##*/} r image-re [podman run args]"
-	case $1 in *'|'*) die "'|' in '$1'"; esac
-	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading --filter=reference="$1" | sed q`
-	#image=`podman images --format='{{$e:=""}}{{range $e = split .Repository "/"}}{{end}}{{$e}}:{{.Tag}}' --noheading | sed -n "\\|$1|{p;q;}"`
-	image=`podman images --format='{{.Repository}}//{{.Tag}}' --noheading | sed -n -e 's|.*/\(.*\)//|\1:|' -e "\\|$1|{p;q;}"`
-	test "$image" || die "${0##*/}: No image match for '$1'"
-	shift
-	run $image "$@"
 }
 
 cmd_i ()
@@ -154,6 +169,20 @@ cmd_e ()
 			;; 2..) set -- "$1" /bin/zsh
 	esac
 	x_exec podman exec -it -w "$PWD" "$@"
+}
+
+cmd_s ()
+{
+	test $# = 1 || {
+		exec >&2; echo
+		echo "Usage: ${0##*/} $cmd (container-name|/container-re/)"
+		echo
+		_ps -a
+		echo
+		exit
+	}
+	case $1 in /*/) set -- -f "name=$1"; esac
+	x_exec podman start -ia "$@"
 }
 
 cmd_push ()
