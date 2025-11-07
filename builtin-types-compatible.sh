@@ -9,9 +9,10 @@ set -euf  # hint: (z|ba|da|'')sh -x thisfile [args] to trace execution
 
 die () { printf '%s\n' '' "$@" ''; exit 1; } >&2
 
-test $# -gt 0 || die "Usage: ${0##*/} type hdr [hdr...] [cc options]" '' \
+test $# -gt 0 || die "Usage: ${0##*/} type [hdr [hdr...]] [cc options]" '' \
   'stdio[.h] and stdint[.h] are included, more hdr(s) may be needed...' \
-  "first arg with leading '-' starts cc options, e.g. -D_LARGEFILE64_SOURCE"
+  "first arg with leading '-' starts cc options, e.g. -D_LARGEFILE64_SOURCE" \
+  '' ": try; $0 int"
 
 case $1 in [a-zA-Z_]*) ;; *) die "'$1' does not start with [a-zA-Z] or '_'"
 esac
