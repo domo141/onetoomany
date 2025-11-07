@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Thu 06 Nov 2025 20:28:25 +0200 too
+# Last modified: Fri 07 Nov 2025 09:52:12 +0200 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -34,7 +34,7 @@ esac
 test $# = 0 && {
 	exec >&2; echo
 	echo "Usage: ${0##*/} [gk] [podman run options] or helper command"
-	echo "  often just 'image' arg is enough to be given"
+	echo "  often just 'image' (or /image-re/) arg is enough to be given"
 	echo "  'g' in first arg: XDG_RUNTIME_DIR and *DISPLAYs are" \
 		"passed for GUI clients"
 	echo "  'k' in first arg: keep container around after exit"
@@ -165,7 +165,15 @@ cmd_psa ()
 
 cmd_e ()
 {
-	case $#${2-}	in 2.) set -- "$1" /bin/bash
+	test $# -lt 2 && {
+		exec >&2; echo
+		echo "Usage: ${0##*/} $cmd container-name command [arg...]"
+		echo
+		_ps ''
+		echo
+		exit
+	}
+	case $#$2	in 2.) set -- "$1" /bin/bash
 			;; 2..) set -- "$1" /bin/zsh
 	esac
 	x_exec podman exec -it -w "$PWD" "$@"
