@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: between 2001 and 2006 too...
-# Last modified: Mon 19 May 2025 22:50:51 +0300 too
+# Last modified: Sat 22 Nov 2025 16:13:33 +0200 too
 
 case ${BASH_VERSION-} in *.*) set -o posix; shopt -s xpg_echo; esac
 case ${ZSH_VERSION-} in *.*) emulate ksh; esac
@@ -19,20 +19,28 @@ set -euf  # hint: zsh -x thisfile [args] to trace execution
 
 die () { printf %s\\n '' "$@" ''; exit 1; } >&2
 
-verbose=false assy=false
+verbose=false assy=false cppo=false opts=
+xcmd=
 while test $# -gt 0
 do case $1
-	in	-v|-x)	verbose=true
-	;;	-a)	assy=true
-	;;	-*)	die "'$1': unknown option"
+	in	-v)	verbose=true
+	;;	-x)	xcmd=${2-}; shift
+	;;	-E)	opts=$opts\ $1; cppo=true
+	;;	-S)	opts=$opts\ $1; assy=true
+	;;	-*)	opts=$opts\ $1
 	;;	*)	break
    esac
-   shift
+   shift || die "$0: option '-x' requires an argument"
 done
 
-case ${1-} in strace | ltrace ) pfxcmd=$1; shift
-	;; *) pfxcmd=
-esac
+if test "$xcmd"
+then
+	bcmd=${xcmd%% *}
+	bbcmd=`command -v "$bcmd"` || :
+	test "$bbcmd" || die "'$bcmd': command not found"
+	case $bbcmd in */*) ;; *) die "'$bbcmd': suspicions - no '/'s" ;; esac
+	unset bcmd bbcmd
+fi
 
 if $verbose
 then	x () { printf '+ %s\n' "$*" >&2; "$@"; }
@@ -42,29 +50,31 @@ fi
 if test $# = 0
 then
 	exec >&2
-	case $0 in /*) cn=${0##*/} ;; *) cn=$0 ;; esac
+	case $0 in /*) n=${0##*/} ;; *) n=$0 ;; esac
 	echo
-	echo Usage: $cn "[-v] [-a] [[sl]trace] 'oneliner' [-opts] [includes...]"
+	echo Usage: $n "[-v] [-x 'cmd'] 'oneliner' [-opts...] [includes...]"
 	echo
-	echo "  '-v': verbose (show code & compilation), '-a': assembler dump".
+	echo "  -v:       verbose (show code & compilation)"
+	printf "  -x 'cmd': the built executable is run using 'cmd'"
+	echo " (e.g. strace)"
 	echo
-	echo "  'strace': the built executable is run using strace(1)".
-	echo "  'ltrace': the built executable is run using ltrace(1)".
+	echo "  More compiler options, starting with '-' may be given"
 	echo
-	echo '  "-lm" is added to the linker options.'; v='#includes'
+	printf '  With -E (preprocess only) or -S (assembler output),'
+	echo " executable not built/run"; v=includes
 	echo
-	echo "  More compiler options, starting with '-' may be given."
+	echo "  Some #$v are added based on the contents of the 'oneliner'".
+	echo '  ".h"s appended to'" $v if not there (i.e. unistd -> unistd.h)".
 	echo
-	echo "  Some $v are added based on the contents of the 'oneliner'".
-	echo '  ".h"s appended to'" $v if not there (i.e. string -> string.h)".
+	echo '  "-lm" is added to the linker options'
 	echo
-	echo '  Default compiler is "gcc". $CC can be used to change that'.
+	echo '  Default compiler is "cc" - $CC can be used to change that'
 	echo
-	echo Example:; v='gcc -std=c89'
-	echo "  CC='$v' $cn 'int i = pow(10, 4); printf(\"%d\", i)' math"
+	echo Example:; o=-std=c89
+	echo "  CC='gcc' $n 'int i = pow(10, 4); printf(\"%d\", i)' math $o"
 	echo
-	echo '  (pow() was not common enough for math.h to be auto-included.)'
-	echo
+	#echo '  (pow() was not common enough for math.h to be auto-included.)'
+	#echo
 	exit 1
 fi
 
@@ -90,13 +100,14 @@ addi ()
 ol=$1
 shift
 
-opts=
-
 for arg
 do
-	case $1 in -*)  opts=$opts\ $arg
-		;; *.h) addi "$arg"
-		;; *)	addi "$arg.h"
+	case $arg
+	in -E)	opts=$opts\ $arg; cppo=true
+	;; -S)	opts=$opts\ $arg; assy=true
+	;; -*)	opts=$opts\ $arg
+	;; *.h) addi "$arg"
+	;; *)	addi "$arg.h"
 	esac
 done
 
@@ -122,13 +133,15 @@ if $verbose
 then x cat $tmp_oneliner_c
 fi
 
-if $assy
+if $cppo
+then	x ${CC:-cc} $opts $tmp_oneliner_c
+elif $assy
 then
-	x ${CC:-gcc} $opts -S -o $tmp_oneliner $tmp_oneliner_c
+	x ${CC:-cc} $opts -o $tmp_oneliner $tmp_oneliner_c
 	x cat $tmp_oneliner
 else
-	x ${CC:-gcc} $opts -o $tmp_oneliner $tmp_oneliner_c -lm
-	x $pfxcmd $tmp_oneliner "$@" # well, no args...
+	x ${CC:-cc} $opts -o $tmp_oneliner $tmp_oneliner_c -lm
+	x $xcmd $tmp_oneliner "$@" # well, no args...
 fi
 
 echo
