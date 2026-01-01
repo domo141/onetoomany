@@ -2,7 +2,7 @@
  set -euf; trg=${0##*''/}; trg=${trg%.c}; test ! -e "$trg" || rm "$trg"
  case ${1-} in '') set x -O2; shift; esac
  #case ${1-} in '') set x -ggdb; shift; esac
- set -x; exec ${CC:-gcc} -std=c99 "$@" -o "$trg" "$0"
+ set -x; exec ${CC:-gcc} -std=c11 "$@" -o "$trg" "$0"
  exit $?
  */
 #endif
@@ -127,7 +127,8 @@
 
 int ffd = -1;
 
-static void tsmsgf(const char * fmt, ...) /* add __attribute__((...))) */
+static void tsmsgf(const char * fmt, ...) __attribute__((format (printf,1,2)));
+static void tsmsgf(const char * fmt, ...)
 {
     struct timespec tv;
     clock_gettime(CLOCK_REALTIME, &tv);
@@ -237,7 +238,7 @@ static void signaled(int sig)
 
 #define BUFSIZE 16384
 
-static char ** split_argv(int argc, char * argv[], char buf[static BUFSIZE])
+static char ** split_argv(int argc, char * argv[], char ** buf)
 {
     char *argv1 = argv[1];
     int ac = 0;
@@ -259,7 +260,7 @@ _break2:
     }
     ac += argc;
     if ((ulong)ac > (BUFSIZE - 32) / sizeof(char**) ) abort(); // unlikely
-    char ** av = (char **)buf; // we trust buf aligned...
+    char ** av = buf;
     av[0] = argv[0];
     int c = 1;
     p = argv1;
@@ -303,7 +304,7 @@ int main(int argc, char * argv[])
                 , argv[0], argv[0]);
         return 1;
     }
-    char buf[BUFSIZE + 12];
+    _Alignas(8) char buf[BUFSIZE + 12];
     if (argv[2][0] == '.' && (argv[2][1] == '\0' ||
                               (argv[2][1] == '.' && argv[2][2] == '\0'))) {
         if (argc == 3) {
@@ -311,7 +312,7 @@ int main(int argc, char * argv[])
             return 1;
         }
     } else {
-        argv = split_argv(argc, argv, buf);
+        argv = split_argv(argc, argv, (char **)buf);
         if (argv == NULL) return 1;
     }
     int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0644);
