@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sun 26 May 2024 12:49:11 EEST too
-# Last modified: Thu 28 Aug 2025 22:01:12 +0300 too
+# Last modified: Sun 22 Mar 2026 19:56:26 +0200 too
 
 ### code-too-remote ###
 use 5.8.1;
@@ -416,7 +416,7 @@ sub l_put_file () {
 		next
 	    }
 	    # check char for success/fail maeby
-	    return;
+	    last
 	}
 	syswrite $S, $synmsg; # to avoid interrupt confusion w/ just a few byte
 	return
@@ -478,7 +478,7 @@ while ( defined ($_ = $term->readline($prompt)) ) {
 __END__
 ### code-too-remote ###
 $rorl = 'remote';
-$0 = 'rclid';
+$0 = 'rcli-server';
 $S = \*STDIN;
 my @list;
 
@@ -536,6 +536,7 @@ sub run_qxish () {
 #sub MSG_DONTWAIT { 64 } # < one linux, one freebsd: 128 ...
 use Socket qw/MSG_DONTWAIT/;
 
+# service l_get_file
 sub r_put_file () { # howto do put_files ? last char '.' and '*?[' in string
     s/\S+\s+//;
     my @st = stat;
@@ -566,6 +567,7 @@ sub r_put_file () { # howto do put_files ? last char '.' and '*?[' in string
     syswrite STDOUT, $synmsg
 }
 
+# service l_put_file
 sub r_get_file () {
     @list = split / /, $_, 4;
     my $fn = $list[3];
