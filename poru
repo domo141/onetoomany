@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Fri 07 Nov 2025 09:52:12 +0200 too
+# Last modified: Sun 26 Apr 2026 18:45:15 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -80,7 +80,7 @@ run ()
 	else wo=
 	fi
 	x_exec podman run --pull=never $rm -it --privileged $wo \
-		--tmpfs /tmp --tmpfs /run \
+		--tmpfs /tmp --tmpfs /run -e "HOME=$HOME" \
 		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$ci" "$@"
 	exit not reached
 }
