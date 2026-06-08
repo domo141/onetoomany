@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Sun 26 Apr 2026 18:45:15 +0300 too
+# Last modified: Mon 08 Jun 2026 21:40:15 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -23,21 +23,24 @@ x () { printf '+ %s\n' "$*" >&2; "$@"; }
 x_exec () { printf '+ %s\n' "$*" >&2; exec "$@"; die "exec '$*' failed"; }
 
 wo=false
+ldrv=none
 rm=--rm
-case ${1-} in '' | *[!gk]*)
+case ${1-} in '' | *[!gkL]*)
 ;; *) # else #
 	case $1 in *g*) wo=true; esac
 	case $1 in *k*) rm=; esac
+	case $1 in *L*) ldrv=; esac
 	shift
 esac
 
 test $# = 0 && {
 	exec >&2; echo
-	echo "Usage: ${0##*/} [gk] [podman run options] or helper command"
+	echo "Usage: ${0##*/} [gkL] [podman run options] or helper command"
 	echo "  often just 'image' (or /image-re/) arg is enough to be given"
 	echo "  'g' in first arg: XDG_RUNTIME_DIR and *DISPLAYs are" \
 		"passed for GUI clients"
 	echo "  'k' in first arg: keep container around after exit"
+	echo "  'L' in first arg: drop --log-driver=none from args"
 	echo '  commands:  r  i ia  l la  ps psa  e  s  mvtag  push and rmi'
 	echo '  the following podman(1) commands are passed through:'
 	echo '    tag  rm  history  inspect  pull  run  start  exec' \
@@ -58,6 +61,20 @@ run ()
 		test "$image" || die "${0##*/}: No image match for '$ci'"
 		ci=$image
 	esac
+	el=
+	while case $1 in *=*) true ;; *) false ;; esac
+	do
+		v=${1%%=*}
+		case $v in [!a-zA-Z_]*) die "'$1': suspicious identifier"
+			;; *[!a-zA-Z0-9_]*) die "'$1': suspicious identifier"
+		esac
+		v=${1#*=}
+		case $v in *["$IFS"]*) die "Whitespace in '$1' not supported"
+		esac
+		el=$el" -e $1"
+		shift
+	done
+
 	if test $# = 1 && test "$1" = . -o "$1" = ..
 	then
 		test $1 = . && set -- /bin/bash || set -- /bin/zsh
@@ -79,9 +96,11 @@ run ()
 	     wo="$wo --security-opt label=type:container_runtime_t"
 	else wo=
 	fi
-	x_exec podman run --pull=never $rm -it --privileged $wo \
-		--tmpfs /tmp --tmpfs /run -e "HOME=$HOME" \
-		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" "$ci" "$@"
+	test "$ldrv" && ldrv=--log-driver=$ldrv || ldrv=
+	h=${ci##*/}; h=${h%%:*}-$$
+	x_exec podman run --pull=never $rm -it --privileged $wo $ldrv \
+		--tmpfs /tmp --tmpfs /run -e "HOME=$HOME" -h "$h" \
+		-v "$HOME:$HOME" ${xv:+ -v "$xv"} -w "$PWD" $el "$ci" "$@"
 	exit not reached
 }
 
