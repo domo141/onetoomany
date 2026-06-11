@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Mon 08 Jun 2026 21:40:15 +0300 too
+# Last modified: Thu 11 Jun 2026 22:27:38 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -65,8 +65,8 @@ run ()
 	while case $1 in *=*) true ;; *) false ;; esac
 	do
 		v=${1%%=*}
-		case $v in [!a-zA-Z_]*) die "'$1': suspicious identifier"
-			;; *[!a-zA-Z0-9_]*) die "'$1': suspicious identifier"
+		case $v in [!a-zA-Z_]*) die "'$1': Suspicious identifier"
+			;; *[!a-zA-Z0-9_]*) die "'$1': Suspicious identifier"
 		esac
 		v=${1#*=}
 		case $v in *["$IFS"]*) die "Whitespace in '$1' not supported"
