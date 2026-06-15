@@ -8,7 +8,7 @@
 #	    All rights reserved
 #
 # Created: Sat 06 Jul 2019 14:03:52 EEST too
-# Last modified: Thu 11 Jun 2026 22:27:38 +0300 too
+# Last modified: Tue 16 Jun 2026 00:46:08 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -62,7 +62,7 @@ run ()
 		ci=$image
 	esac
 	el=
-	while case $1 in *=*) true ;; *) false ;; esac
+	while case ${1-} in *=*) true ;; *) false ;; esac
 	do
 		v=${1%%=*}
 		case $v in [!a-zA-Z_]*) die "'$1': Suspicious identifier"
