@@ -250,9 +250,17 @@ included (partially verbatim, rest editable) within a C program source.
 The last 100 lines of code in this "Unlicense"d file shows comprehensive
 example of the features in this (extendable) implementation.
 
+
+=== link:src/ldpreload-trace-execves.c[ldpreload-trace-execves.c]
+
+Wraps execve(2) and various library functions that eventually call
+execve(2). Prints some info of the call to stderr. Probably most
+useful as a base for mangling the calls; otherwise strace(1) and
+ltrace(1) (with the -e option) are usually more useful.
+
+
 server setups
 -------------
-
 
 === link:gitrepos.sh[gitrepos.sh]
 
