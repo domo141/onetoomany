@@ -3,7 +3,7 @@
 # $ dhcphaxd.pl $
 #
 # Created: Mon 18 Nov 2013 22:25:40 EET too
-# Last modified: Sun 19 Jan 2025 21:17:14 +0200 too
+# Last modified: Mon 29 Jun 2026 21:28:24 +0300 too
 
 # SPDX-License-Identifier: BSD 2-Clause "Simplified" License
 
@@ -41,7 +41,8 @@ die "\nUsage: $0 [srv port] [peer addr] <interface> <offeredip> <r|n>
   This is usable in \"point-to-point\" ethernet connection between
   2 machines e.g. for development purposes.
 
-  Default [srv port] is 67 and default [peer addr] 255.255.255.255.\n\n"
+  Default [srv port] is 67 and default [peer addr] 255.255.255.255
+  (often [srv port] needs to be changed - 6767 is one good choice).\n\n"
   unless @ARGV == 3;
 
 my $send_route;
@@ -138,22 +139,26 @@ w "'$offeredip' is the same as broadcast address\n" if ($oipv == ($oipv | $im));
 
 ##############
 
-die "sudo!\n" unless $< == 0;
+$0 =~ s,.*/,,,die "$0 needs (root) privileges!\n" unless $< == 0;
 
 my @nameservers;
-open I, '<', '/etc/resolv.conf' or die "Cannot read '/etc/resolv.conf: $!\n";
-while (<I>) {
+
+if ($send_route) {
+ open I, '<', '/etc/resolv.conf' or die "Cannot read '/etc/resolv.conf: $!\n";
+ while (<I>) {
     if (/^\s*nameserver\s+(\d+)[.](\S+)/) {
 	next if $1 eq '127';
 	push @nameservers, "$1.$2";
     }
-}
-close I;
-unless (@nameservers) {
+ }
+ close I;
+ unless (@nameservers) {
     warn "Did not find name servers. Offering '9.9.9.9'.\n";
     push @nameservers, '9.9.9.9';
+ }
+} else {
+    @nameservers = ( 'not offered' )
 }
-
 my ($chaddr, $xid, $op) = ('', '', '');
 sub send_message();
 sub ts();
