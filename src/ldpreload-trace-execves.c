@@ -19,7 +19,7 @@
  * SPDX-License-Identifier: Unlicense
  *
  * Created: Sat 27 Jun 2026 11:36:29 +0300 too
- * Last modified: Sun 28 Jun 2026 13:44:21 +0300 too
+ * Last modified: Tue 07 Jul 2026 18:16:09 +0300 too
  */
 /* Execute  sh ldpreload-trace-execves.c  to compile
  */
@@ -30,8 +30,12 @@
  */
 /*
  * Probably most useful as a starting point to mangle exec* calls.
- * Note that there may be more library functions that finally call execve().
- * LD_PRELOAD=$PWD/ldpreload-trace-execves.so strace -f -ooo -e trace=execve ...
+ * Note that there may be more library functions that finally call execve();
+ * these prefix command hints may help to figure out if there are any...
+ *   LD_DEBUG=all ...
+ *   strace -f -ooo -e trace={process,execve} ...
+ *   ltrace (-e|-x|-l) ...
+ *   ldd ... (and if no ldd(1) LD_TRACE_LOADED_OBJECTS=t ... (see man ld.so))
  */
 
 // -- set compiler warnings -- //
