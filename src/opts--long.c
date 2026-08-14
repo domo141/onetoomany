@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 29 Aug 2024 17:18:51 EEST too
- * Last modified: Sat 31 Aug 2024 18:06:30 +0300 too
+ * Last modified: Fri 14 Aug 2026 23:00:25 +0300 too
  */
 
 // (Ø) public domain, like https://creativecommons.org/publicdomain/zero/1.0/
@@ -88,6 +88,7 @@ PRAGMA_GCC_DIAG (-Wformat)
 PRAGMA_GCC_DIAG (-Wformat-nonliteral)
 PRAGMA_GCC_DIAG (-Wformat-security)
 PRAGMA_GCC_DIAG (-Wformat-y2k)
+PRAGMA_GCC_DIAG (-Wformat-signedness)
 
 PRAGMA_GCC_DIAG (-Winit-self)
 PRAGMA_GCC_DIAG (-Wcast-align)
