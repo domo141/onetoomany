@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Sat 05 Jul 2025 22:29:36 +0300 too
+ * Last modified: Thu 13 Aug 2026 21:27:11 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -121,6 +121,17 @@
 #include <time.h>
 #include <err.h>
 
+#if defined (__linux__) && __linux__
+#define DO_PDEATHSIG 1 /* 0 to not do */
+#else
+#define DO_PDEATHSIG 0
+#endif
+
+#if DO_PDEATHSIG
+#include <linux/prctl.h>  /* Definition of PR_* constants */
+#include <sys/prctl.h>
+#endif
+
 /* some compiler setups complain:  warning: ignoring return value of ‘write’,
    declared with attribute warn_unused_result [-Wunused-result] */
 #define write (void)!write
@@ -170,6 +181,9 @@ static void run_command(char * cmdl[])
     dup2(pipefd[1], 1);
     dup2(1, 2);
     close(pipefd[1]);
+#if DO_PDEATHSIG
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
+#endif
     execvp(cmdl[0], cmdl);
     edie("execve %s ...", cmdl[0]);
 }
