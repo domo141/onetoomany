@@ -15,7 +15,7 @@
  *          All rights reserved
  *
  * Created: Thu 27 Oct 2022 19:46:35 EEST too
- * Last modified: Thu 13 Aug 2026 21:27:21 +0300 too
+ * Last modified: Fri 14 Aug 2026 23:38:10 +0300 too
  */
 
 /* how to try: sh thisfile.c -DTEST, then ./thisfile logf cat thisfile.c */
@@ -223,15 +223,16 @@ static void s_ms_s(char * buf, time_t s, long ns)
 #if TEST & 2
     s = 0; ns = 0;
 #endif
-    buf[2] = buf[9] = ':'; buf[5] = ','; buf[10] = ' ';
-    buf[4] = '0' + s % 10; s /= 10;
-    buf[3] = '0' + s % 6; s /= 6;
+    buf[3] = buf[10] = ':'; buf[6] = ','; buf[11] = ' ';
+    buf[5] = '0' + s % 10; s /= 10;
+    buf[4] = '0' + s % 6; s /= 6;
+    buf[2] = '0' + s % 10; s /= 10;
     buf[1] = '0' + s % 10; s /= 10;
     buf[0] = '0' + s % 10;
 
-    ns = ns / 1e6; buf[8] = '0' + ns % 10;
-    ns = ns / 10;  buf[7] = '0' + ns % 10;
-    ns = ns / 10;  buf[6] = '0' + ns;
+    ns = ns / 1e6; buf[9] = '0' + ns % 10;
+    ns = ns / 10;  buf[8] = '0' + ns % 10;
+    ns = ns / 10;  buf[7] = '0' + ns;
 }
 
 static void sigact(int sig, void (*handler)(int))
@@ -322,7 +323,7 @@ int main(int argc, char * argv[])
                 , argv[0], argv[0]);
         return 1;
     }
-    char buf[BUFSIZE + 12];
+    char buf[BUFSIZE + 16];
     if (argv[2][0] == '.' && (argv[2][1] == '\0' ||
                               (argv[2][1] == '.' && argv[2][2] == '\0'))) {
         if (argc == 3) {
@@ -353,51 +354,51 @@ int main(int argc, char * argv[])
     sigact(SIGINT, signaled);
     sigact(SIGTERM, signaled);
     /* split_argv() -returned argv is clobbered after next line */
-    memcpy(buf + 11, "start\n", 6);
+    memcpy(buf + 12, "start\n", 6);
     struct timespec start_tv, tv;
     clock_gettime(CLOCK_REALTIME, &start_tv);
     s_ms_s(buf, 0, start_tv.tv_nsec);
-    write(fd, buf, 17);
-    write(1, buf, 17);
+    write(fd, buf, 18);
+    write(1, buf, 18);
     int ts = 1;
     while (1) {
 #if !TEST
-        int l = read(0, buf + 11, BUFSIZE);
+        int l = read(0, buf + 12, BUFSIZE);
 #else
-        int l = read(0, buf + 11, rndsiz());
+        int l = read(0, buf + 12, rndsiz());
 #endif
         clock_gettime(CLOCK_REALTIME, &tv);
         if (l <= 0) break;
-        write(1, buf + 11, l);
-        char *pp = buf, *p = buf + 11;
+        write(1, buf + 12, l);
+        char *pp = buf, *p = buf + 12;
         int i = 0;
         while (i++ < l) {
             if (*p++ == '\n') {
                 if (ts)
                     s_ms_s(pp, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
                 else {
-                    pp += 11;
+                    pp += 12;
                     ts = 1;
                 }
                 write(fd, pp, p - pp);
-                pp = p - 11;
+                pp = p - 12;
             }
         }
-        if (pp < p - 11) {
+        if (pp < p - 12) {
             if (ts) {
                 s_ms_s(pp, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
             }
             else {
-                pp += 11;
+                pp += 12;
             }
             write(fd, pp, p - pp);
             ts = 0;
         }
     }
     s_ms_s(buf, tv.tv_sec - start_tv.tv_sec, tv.tv_nsec);
-    memcpy(buf + 11, "eof!\n", 5);
-    write(fd, buf, 16);
-    write(1, buf, 16);
+    memcpy(buf + 12, "eof!\n", 5);
+    write(fd, buf, 17);
+    write(1, buf, 17);
     int wstatus;
     pid_t pid = wait(&wstatus);
     if (pid < 0) edie("wait");
