@@ -149,7 +149,10 @@ static void tsmsgf(const char * fmt, ...) /* add __attribute__((...))) */
                      tm->tm_hour, tm->tm_min, tm->tm_sec, tv.tv_nsec);
     va_list ap;
     va_start(ap, fmt);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
     l = l + vsnprintf(buf + l, sizeof buf - l, fmt, ap);
+#pragma GCC diagnostic pop
     va_end(ap);
     if (l >= (int)sizeof buf) l = (int)sizeof buf - 1;
     write(ffd, buf, l);
